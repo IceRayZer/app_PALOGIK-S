@@ -385,7 +385,14 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
 /* ---------- live : WebRTC pair-à-pair via PeerJS (les données ne passent par aucun serveur) ---------- */
 const COLORS=['#e4572e','#17bebb','#d9a600','#76b041','#a05195','#ff7f50'];
 const ME={name:LS('racines.me')||'',color:COLORS[Math.random()*6|0]};
-const live={peer:null,conns:[],host:false,code:'',peers:{},sent:0};
+const live={peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false};
+const DID=LS('racines.id')||(()=>{const v=rid()+rid();LS('racines.id',v);return v})(); // identité de cet appareil
+const reg=()=>{try{return JSON.parse(LS('racines.reg.'+T.id)||'{}')}catch{return{}}}, saveReg=R=>LS('racines.reg.'+T.id,JSON.stringify(R)); // appareils connus de l'hôte : {id:{name,role}}
+function kick(key){if(!live.host||key==='host'||!live.peers[key])return;const c=live.conns.find(x=>x.peer===key),did=live.dids[key];
+ if(did){const R=reg();delete R[did];saveReg(R)}
+ delete live.peers[key];delete live.dids[key];live.conns=live.conns.filter(x=>x!==c);
+ if(c){c.send({t:'kicked'});setTimeout(()=>c.close(),300)}bcastPeers();liveUI();render()}
+const doKick=key=>{const v=live.peers[key];if(!v||!confirm(`Retirer ${v.name} de la session ? Il pourra la rejoindre à nouveau avec le lien (une nouvelle validation sera demandée).`))return;live.host?kick(key):send({t:'kick',to:key})};
 const RK={guest:0,editor:1,creator:2},ROLE_LABEL={guest:'👁️ Invité',editor:'✏️ Éditeur',creator:'👑 Créateur'};
 // hors session ou hôte = Créateur ; invité connecté = rôle attribué par l'hôte (Invité tant qu'il n'est pas reçu)
 const myRole=()=>!live.peer||live.host?'creator':(live.peers[myKey()]||{}).role in RK?live.peers[myKey()].role:'guest';
@@ -400,19 +407,22 @@ async function hostStart(){await loadPeer();const code=Math.random().toString(36
  Object.assign(live,{peer,host:true,code,peers:{host:{name:ME.name,color:ME.color,sel,role:'creator'}}});
  peer.on('open',()=>{liveUI();render()});
  peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();hostStart()}else{toast('Live : '+e.type);leave()}});
- peer.on('connection',c=>{c.on('data',m=>onMsg(m,c));c.on('close',()=>{live.conns=live.conns.filter(x=>x!==c);if(live.peers[c.peer]){toast(`👋 ${live.peers[c.peer].name} est parti·e`);delete live.peers[c.peer];bcastPeers();liveUI();render()}})})}
-async function joinStart(code,name){await loadPeer();ME.name=name;LS('racines.me',name);const peer=new Peer();Object.assign(live,{peer,host:false,code,sent:0,peers:{}});
+ peer.on('connection',c=>{c.on('data',m=>onMsg(m,c));c.on('close',()=>{live.conns=live.conns.filter(x=>x!==c);if(live.peers[c.peer]){toast(`👋 ${live.peers[c.peer].name} est parti·e`);delete live.peers[c.peer];delete live.dids[c.peer];bcastPeers();liveUI();render()}})})}
+async function joinStart(code,name,quiet){await loadPeer();ME.name=name;LS('racines.me',name);LS('racines.sess',code);const peer=new Peer();Object.assign(live,{peer,host:false,code,sent:0,peers:{},quiet:!!quiet});
  peer.on('open',()=>{const c=peer.connect('racines-'+code,{reliable:true});live.conns=[c];
-  c.on('open',()=>{c.send({t:'hi',me:{name:ME.name,color:ME.color,sel}});toast('⏳ En attente de l’acceptation de l’hôte…')});
+  c.on('open',()=>{c.send({t:'hi',me:{name:ME.name,color:ME.color,sel,id:DID}});if(!live.quiet)toast('⏳ En attente de l’acceptation de l’hôte…')});
   c.on('data',m=>onMsg(m,c));c.on('close',()=>{if(live.peer){toast('Session terminée — ta copie reste sur cet appareil');leave()}})});
- peer.on('error',e=>{toast(e.type==='peer-unavailable'?'Code introuvable : l’hôte est-il connecté ?':'Connexion impossible ('+e.type+')');leave()})}
-function leave(){if(live.peer)live.peer.destroy();Object.assign(live,{peer:null,conns:[],host:false,code:'',peers:{},sent:0});liveUI();render()}
+ peer.on('error',e=>{if(!live.quiet)toast(e.type==='peer-unavailable'?'Code introuvable : l’hôte est-il connecté ?':'Connexion impossible ('+e.type+')');leave()})}
+function leave(){if(live.peer)live.peer.destroy();LS('racines.sess','');Object.assign(live,{peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false});liveUI();render()}
 async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
  if(live.host&&m.t!=='hi'&&!live.conns.includes(c))return;
  switch(m.t){
  case'hi':{if(!live.host||live.conns.includes(c)||!m.me)return;const me={name:String(m.me.name||'Invité').slice(0,30),color:safeC(m.me.color)};
-  if(!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} » (en tant qu’Invité : lecture seule, tu pourras changer son rôle ensuite). Accepter ?`)){c.close();return}
-  live.conns.push(c);live.peers[c.peer]={...me,role:'guest'};c.send({t:'tree',tree:T});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
+  const did=String(m.me.id||'').slice(0,40),R=reg(),known=did&&R[did]; // appareil déjà venu : accepté d'office avec son rôle
+  if(!known&&!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} » (en tant qu’Invité : lecture seule, tu pourras changer son rôle ensuite). Accepter ?`)){c.close();return}
+  if(did)for(const [k,d] of Object.entries(live.dids))if(d===did){const old=live.conns.find(x=>x.peer===k);live.conns=live.conns.filter(x=>x!==old);delete live.peers[k];delete live.dids[k];if(old)old.close()} // même appareil qui revient : on remplace l'ancienne connexion
+  live.conns.push(c);live.peers[c.peer]={...me,role:known&&known.role in RK?known.role:'guest'};
+  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',tree:T});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
  case'tree':{if(live.host&&rankOf(c)<1)return;const r=norm(m.tree);if(live.host&&rankOf(c)<2)r.mu=0;let n=0;
   if(!live.host&&(!T||T.id!==r.id)){const l=(await allTrees()).find(t=>t.id===r.id);if(l){mergeTree(l,r);T=l}else T=r;view='tree';cam=null;sel=null;n=1}else if(T&&T.id===r.id)n=mergeTree(T,r);
   if(!T)return;await saveTree(T);if(!live.host&&!live.sent){live.sent=1;c.send({t:'tree',tree:T})}if(live.host&&n)send({t:'tree',tree:T},c);render();break}
@@ -420,12 +430,14 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
  case'm':{if(!T||!m.m||(live.host&&rankOf(c)<2))return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
  case'sel':{if(live.host&&live.peers[c.peer]){live.peers[c.peer].sel=typeof m.id==='string'?m.id:null;bcastPeers();render()}break}
  case'role':{if(live.host&&rankOf(c)>=2)setRole(m.to,m.role);break}
+ case'kick':{if(live.host&&rankOf(c)>=2)kick(m.to);break}
+ case'kicked':{if(!live.host){toast('Tu as été retiré de la session');leave()}break}
  case'peers':{if(!live.host&&m.peers){const b=myRole();live.peers=m.peers;if(myRole()!==b)toast(`Ton rôle : ${ROLE_LABEL[myRole()]}`);liveUI();render()}break}}}
-function setRole(key,role){if(!live.host||!live.peers[key]||key==='host'||!(role in RK))return;live.peers[key].role=role;bcastPeers();liveUI();render()}
+function setRole(key,role){if(!live.host||!live.peers[key]||key==='host'||!(role in RK))return;live.peers[key].role=role;const did=live.dids[key];if(did){const R=reg();if(R[did]){R[did].role=role;saveReg(R)}}bcastPeers();liveUI();render()}
 function liveUI(open){
  if(open&&!liveOv){liveOv=el('<div class=ov></div>');document.body.append(liveOv);
   liveOv.addEventListener('change',e=>{const s=e.target.closest('[data-role]');if(!s)return;if(live.host)setRole(s.dataset.role,s.value);else send({t:'role',to:s.dataset.role,role:s.value})});
-  liveOv.addEventListener('click',async e=>{const b=e.target.closest('[data-l]');if(!b)return;const l=b.dataset.l,nm=()=>($('#lname',liveOv).value||'').trim()||'Anonyme';
+  liveOv.addEventListener('click',async e=>{const kb=e.target.closest('[data-kick]');if(kb)return doKick(kb.dataset.kick);const b=e.target.closest('[data-l]');if(!b)return;const l=b.dataset.l,nm=()=>($('#lname',liveOv).value||'').trim()||'Anonyme';
    try{if(l==='close'){liveOv.remove();liveOv=null}
    else if(l==='host'){ME.name=nm();LS('racines.me',ME.name);await hostStart()}
    else if(l==='join'){const c=($('#lcode',liveOv).value||'').trim().toUpperCase();if(!c)return toast('Entre le code');await joinStart(c,nm());liveUI()}
@@ -434,13 +446,18 @@ function liveUI(open){
  if(!liveOv||!liveOv.isConnected)return;
  const on=!!live.peer,pre=typeof open==='string'?open:'';
  liveOv.innerHTML=`<div class=wz><div class=wt><span>📡 Session live</span><button class=x data-l=close>✕</button></div>`+(on?
-  `<p>Ton rôle : <b>${ROLE_LABEL[myRole()]}</b></p>${rank()>=2?`<p>Code invité : <b class=code>${esc(live.code)}</b></p><p><button data-l=copy>🔗 Copier le lien d’invitation</button></p>`:''}<h4>Participants</h4>${Object.entries(live.peers).map(([k,v])=>{const r=v.role in RK?v.role:'guest';return`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span class=dot style="background:${safeC(v.color)}"></span><span style="flex:1">${esc(v.name)}${k===myKey()?' (moi)':''}${k==='host'?' · hôte':''}</span>${rank()>=2&&k!=='host'?`<select data-role="${esc(k)}">${Object.entries(ROLE_LABEL).map(([rk,l])=>`<option value=${rk} ${rk===r?'selected':''}>${l}</option>`).join('')}</select>`:`<small>${ROLE_LABEL[r]}</small>`}</div>`}).join('')||'<small>Connexion…</small>'}<p class=hint>Les modifications s’affichent en direct chez tout le monde. Chacun garde sa copie sur son appareil.${live.host?' Si tu quittes, la session s’arrête.':''}</p><button data-l=leave>Quitter la session</button>`
+  `<p>Ton rôle : <b>${ROLE_LABEL[myRole()]}</b></p>${rank()>=2?`<p>Code invité : <b class=code>${esc(live.code)}</b></p><p><button data-l=copy>🔗 Copier le lien d’invitation</button></p>`:''}<h4>Participants</h4>${Object.entries(live.peers).map(([k,v])=>{const r=v.role in RK?v.role:'guest';return`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span class=dot style="background:${safeC(v.color)}"></span><span style="flex:1">${esc(v.name)}${k===myKey()?' (moi)':''}${k==='host'?' · hôte':''}</span>${rank()>=2&&k!=='host'?`<select data-role="${esc(k)}">${Object.entries(ROLE_LABEL).map(([rk,l])=>`<option value=${rk} ${rk===r?'selected':''}>${l}</option>`).join('')}</select>`:`<small>${ROLE_LABEL[r]}</small>`}${rank()>=2&&k!=='host'&&k!==myKey()?`<button class=x data-kick="${esc(k)}" title="Retirer de la session">✕</button>`:''}</div>`}).join('')||'<small>Connexion…</small>'}<p class=hint>Les modifications s’affichent en direct chez tout le monde. Chacun garde sa copie sur son appareil.${live.host?' Si tu quittes, la session s’arrête.':''}</p><button data-l=leave>Quitter la session</button>`
   :`<p class=hint>Édite l’arbre à plusieurs en direct. Les données circulent <b>d’appareil à appareil</b> (WebRTC) — rien n’est envoyé à GitHub. L’hôte valide chaque invité.</p><label>Ton prénom<input id=lname value="${esc(ME.name)}"></label>${T?`<p><button class=pri data-l=host>Héberger « ${esc(T.name)} »</button></p>`:''}<h4>Rejoindre une session</h4><input id=lcode placeholder="Code (ex. K3F9QZ)" value="${esc(pre)}" style="text-transform:uppercase"><p><button data-l=join>Rejoindre</button></p><p class=hint>En rejoignant, tu reçois une copie de l’arbre, stockée uniquement sur ton appareil.</p>`)+'</div>'}
 
 /* ---------- démarrage ---------- */
 (async()=>{try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
  HOME=await allTrees();render();
- const m=location.hash.match(/join=([A-Za-z0-9]+)/);if(m){history.replaceState(null,'',location.pathname+location.search);liveUI(m[1].toUpperCase())}})();
+ const m=location.hash.match(/join=([A-Za-z0-9]+)/);
+ if(m){history.replaceState(null,'',location.pathname+location.search);const code=m[1].toUpperCase();
+  if(ME.name)joinStart(code,ME.name).catch(e=>toast(e.message)); // appareil déjà venu : on entre directement, sans formulaire
+  else liveUI(code)}
+ else{const s=LS('racines.sess');if(s&&ME.name)joinStart(s,ME.name,true).catch(()=>{})} // rechargement : on reprend la session en cours
+})();
 </script>
 </body>
 </html>

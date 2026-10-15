@@ -2,26 +2,44 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Racines — arbre généalogique</title>
 <style>
 :root{--bg:#f6f1e7;--card:#fffdf8;--ink:#2b2a26;--mut:#7a7467;--line:#c9bfa8;--acc:#3f7d58;--accink:#fff;--F:#f6d3dc;--M:#cfe0f3;--X:#dcebcf;--sh:0 2px 10px #0002}
 @media(prefers-color-scheme:dark){:root{--bg:#1b1a17;--card:#26241f;--ink:#efe9da;--mut:#a39c8b;--line:#4a463b;--acc:#6fbf8b;--accink:#10210f;--F:#5a3a44;--M:#34495f;--X:#44563a}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 button,input,textarea{font:inherit;color:inherit}
 button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
 button:hover{filter:brightness(.95)}button:disabled{opacity:.4;cursor:default}
 button.pri{background:var(--acc);color:var(--accink);border-color:var(--acc)}
 button.lnk{border:0;background:none;color:var(--mut);text-decoration:underline}
-input,textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input,textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;font-size:16px}
 h1,h2,h3,h4{margin:.6em 0 .3em}
 .mut,small{color:var(--mut)}
-header{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.logo{cursor:pointer;font-size:18px}.tname{color:var(--mut)}.sp{flex:1}
-.tabs{display:flex;gap:4px;flex-wrap:wrap}.tabs button.on{background:var(--ink);color:var(--bg)}
-.banner{background:#ffe9a8;color:#4a3b00;padding:6px 12px;display:flex;gap:10px;align-items:center;font-size:14px}
+header{display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);order:0;position:relative}
+.logo{cursor:pointer;font-size:18px;white-space:nowrap}.tname{color:var(--mut);flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sp{flex:1}
+header button{padding:7px 11px;white-space:nowrap}
+#nv{display:flex;gap:4px;padding:4px 10px;border-bottom:1px solid var(--line);order:1}
+#nv:empty{display:none}
+#nv button{display:flex;align-items:center;gap:6px}#nv button.on{background:var(--ink);color:var(--bg)}
+#nv .ic{font-size:16px}
+#bn{order:2}#mn{order:3}
+.banner{background:#ffe9a8;color:#4a3b00;padding:6px 12px;display:flex;gap:10px;align-items:center;font-size:14px}.banner span{flex:1}
+.mw{position:relative}
+#mnu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);padding:6px;z-index:8;min-width:210px;flex-direction:column;gap:2px}
+#mnu.open{display:flex}#mnu button{border:0;text-align:left;background:none;padding:11px 12px;font-size:15px}#mnu small{padding:6px 12px}
+.badge{background:#e5484d;color:#fff;border-radius:99px;padding:0 7px;font-size:12px;margin-left:3px}
+@media(max-width:760px){
+ .lb{display:none}
+ header button{padding:9px 12px;font-size:17px}
+ #nv{order:5;border-top:1px solid var(--line);border-bottom:0;padding:0 0 env(safe-area-inset-bottom);gap:0;background:var(--card)}
+ #nv button{flex:1;flex-direction:column;gap:1px;border:0;border-radius:0;background:none;padding:7px 2px;font-size:11px}
+ #nv button.on{background:none;color:var(--acc);box-shadow:inset 0 3px 0 var(--acc)}
+ #nv .ic{font-size:22px}
+ .banner{font-size:12.5px;padding:5px 10px}
+}
 main{flex:1;display:flex;min-height:0;position:relative}
 #vw{flex:1;min-width:0}
 #vw.st{position:relative;overflow:hidden;touch-action:none;cursor:grab;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:24px 24px}
@@ -29,7 +47,18 @@ main{flex:1;display:flex;min-height:0;position:relative}
 #world{position:absolute;left:0;top:0;transform-origin:0 0}
 .lines{position:absolute;left:0;top:0;overflow:visible;stroke:var(--line);fill:none;stroke-width:2}
 .lines text{fill:var(--acc);stroke:none;font-size:14px}
-.zc{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+.zc{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px}
+.zc button{width:46px;height:46px;font-size:20px;padding:0;border-radius:12px;box-shadow:var(--sh)}
+.tk{display:flex;border:1px solid var(--line);border-radius:18px;background:var(--card);margin:10px 0;overflow:hidden;box-shadow:var(--sh)}
+.tk-main{flex:1;min-width:0;padding:10px 12px;cursor:pointer}.tk-meta{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:8px;display:inline-block;padding:2px 8px;margin-bottom:8px}
+.tk-person{display:flex;gap:10px;align-items:center}.tk-person b{display:block}
+.tk-btns{display:flex;flex-direction:column;width:72px;border-left:1px solid var(--line)}
+.tk-btns button{flex:1;font-size:28px;border:0;border-radius:0;min-height:56px}.tk-btns .ok{background:#2e9e5b33;border-bottom:1px solid var(--line)}.tk-btns .no{background:#e5484d33}
+.dr{border-radius:8px;padding:6px 8px;margin:6px 0;font-size:14px;overflow-wrap:anywhere}.dr b{display:block;font-size:12px;color:var(--mut)}
+.d-add{background:rgba(255,120,200,.32)}.d-mod{background:rgba(255,150,40,.38)}.d-del{background:rgba(220,20,20,.30)}
+.legend .d-add,.legend .d-mod,.legend .d-del{display:inline-block}
+.dr s{opacity:.8}.dr .thumb{width:72px;height:72px;object-fit:cover;border-radius:10px;vertical-align:middle}.dr audio{width:100%;margin:2px 0}
+.legend span{display:inline-block;padding:1px 8px;border-radius:8px;margin-right:6px;font-size:12px}
 .card{position:absolute;height:78px;display:flex;gap:8px;align-items:center;padding:8px;border-radius:12px;background:var(--card);border:2px solid var(--line);box-shadow:var(--sh);cursor:pointer}
 .card.F{background:var(--F)}.card.M{background:var(--M)}.card.X{background:var(--X)}
 .card.sel{border-color:var(--acc);outline:3px solid var(--acc)}
@@ -59,7 +88,7 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 .tcard div{flex:1}
 .empty-st{display:grid;place-items:center;height:100%;text-align:center;padding:20px}
 .ov{position:fixed;inset:0;background:#0008;display:grid;place-items:center;z-index:10;padding:12px}
-.wz{background:var(--card);width:min(520px,100%);border-radius:18px;padding:20px 22px;box-shadow:0 10px 40px #0006;max-height:96vh;overflow:auto;animation:pop .25s}
+.wz{background:var(--card);width:min(520px,100%);border-radius:18px;padding:20px 22px;box-shadow:0 10px 40px #0006;max-height:96vh;max-height:96dvh;overflow:auto;animation:pop .25s}
 .wz.shake{animation:shake .35s}
 .wt{display:flex;justify-content:space-between;align-items:center;color:var(--mut);font-size:13px}
 .x{border:0;background:none;font-size:16px}
@@ -81,7 +110,7 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 </style>
 </head>
 <body>
-<header id="hd"></header><div id="bn"></div><main id="mn"></main>
+<header id="hd"></header><nav id="nv"></nav><div id="bn"></div><main id="mn"></main>
 <input type="file" id="imp" hidden accept=".json,application/json">
 <script>
 'use strict';
@@ -132,12 +161,19 @@ const safePhoto=s=>/^data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+$/.test(s)?s:'';
 function normP(p){p.parents=Array.isArray(p.parents)?p.parents.filter(x=>typeof x==='string').slice(0,2):[];
  for(const k of ['first','last','maiden','birth','birthPlace','death','deathPlace','job','story','storyQ','gender','partner'])p[k]=typeof p[k]==='string'?p[k]:'';
  p.photo=safePhoto(p.photo||'');p.voice=safeAudio(p.voice||'');p.u=+p.u||0;p.alive=p.alive!==false;return p}
-function norm(t){t.persons=t.persons&&typeof t.persons==='object'?t.persons:{};for(const p of Object.values(t.persons))normP(p);t.mu=+t.mu||0;t.updated=+t.updated||0;
+const wire=t=>{const {tickets,su,...w}=t;return w}; // ce qui part vers les autres / dans l'export (sans tickets ni suivi de synchro)
+function norm(t){t.tickets=Array.isArray(t.tickets)?t.tickets.filter(x=>x&&x.after&&x.after.id).map(x=>({...x,who:String(x.who||'?').slice(0,30),after:normP(x.after)})):[];t.su=t.su&&typeof t.su==='object'?t.su:{};t.persons=t.persons&&typeof t.persons==='object'?t.persons:{};for(const p of Object.values(t.persons))normP(p);t.mu=+t.mu||0;t.updated=+t.updated||0;
  for(const k of ['name','family','origin','about','author'])t[k]=typeof t[k]==='string'?t[k]:'';return t}
+const DF=['first','last','maiden','gender','birth','birthPlace','death','deathPlace','job','story','photo','voice','partner'];
+const same=(a,b)=>DF.every(k=>(a[k]||'')===(b[k]||''))&&(a.alive!==false)===(b.alive!==false)&&!!a.del===!!b.del&&a.parents.join()===b.parents.join();
+// fiches modifiées par l'invité depuis sa dernière synchro (su) et différentes de celles de l'hôte
+function proposals(l,r){const out=[];for(const [id,lp] of Object.entries(l.persons)){const hp=r.persons[id];
+ const edited=l.su&&l.su[id]!==undefined?lp.u!==l.su[id]:(!hp||lp.u>hp.u);
+ if(!edited||(hp&&same(lp,hp))||(!hp&&lp.del))continue;out.push({after:lp})}return out}
 function mergeTree(a,b){let n=0;for(const [id,p] of Object.entries(b.persons)){const l=a.persons[id];if(!l||p.u>l.u){a.persons[id]=p;n++}}
  if(b.mu>a.mu){for(const k of ['name','family','origin','about','author'])a[k]=b[k];a.mu=b.mu;n++}
  a.updated=Math.max(a.updated,b.updated);return n}
-function commit(p){p.u=now();T.updated=p.u;saveTree(T);send({t:'p',p,by:ME.name});render()}
+function commit(p){p.u=now();T.updated=p.u;if(live.peer&&!live.host){T.su=T.su||{};T.su[p.id]=p.u}saveTree(T);send({t:'p',p,by:ME.name});render()}
 function setPartner(p,qid){const old=get(p.partner);if(old&&old.id!==qid&&old.partner===p.id){old.partner='';commit(old)}
  const q=qid&&get(qid);if(q){const oq=get(q.partner);if(oq&&oq.id!==p.id){oq.partner='';commit(oq)}if(q.partner!==p.id){q.partner=p.id;commit(q)}}p.partner=q?q.id:''}
 function savePerson(d,id){const p=id?T.persons[id]:{id:rid(),partner:'',parents:[]};
@@ -175,7 +211,7 @@ async function recToggle(d,draw){
   mr.onstop=()=>{clearTimeout(tm);clearInterval(iv);ac.close();st.getTracks().forEach(t=>t.stop());rec=null;
    if(peak<.02)toast('⚠️ Aucun son capté : vérifie que le micro n’est pas coupé, puis réessaie');
    const r=new FileReader();r.onload=()=>{d.voice=safeAudio(r.result)||d.voice;draw()};r.readAsDataURL(new Blob(ch,{type:mr.mimeType||mt||'audio/webm'}))};
-  mr.start();draw()}catch{toast('Micro inaccessible : autorise-le dans le navigateur')}}
+  mr.start();draw()}catch{toast('Micro inaccessible : autorise-le dans le navigateur (un appel en cours peut aussi l’occuper)')}}
 // lecture via une URL blob (plus fiable que data: sur mobile)
 const BU=new Map();
 function blobUrl(u){if(!u)return'';let b=BU.get(u);if(!b){const i=u.indexOf(','),bin=atob(u.slice(i+1)),a=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)a[k]=bin.charCodeAt(k);
@@ -289,16 +325,22 @@ function layout(){
 
 let cam=null,lay={W:1,H:1},moved=false;
 const camApply=()=>{const w=$('#world');if(w)w.style.transform=`translate(${cam.x}px,${cam.y}px) scale(${cam.k})`};
-const zoomAt=(mx,my,f)=>{const k=Math.min(2,Math.max(.15,cam.k*f));cam.x=mx-(mx-cam.x)*k/cam.k;cam.y=my-(my-cam.y)*k/cam.k;cam.k=k;camApply()};
+const zoomAt=(mx,my,f)=>{const k=Math.min(3,Math.max(.08,cam.k*f));cam.x=mx-(mx-cam.x)*k/cam.k;cam.y=my-(my-cam.y)*k/cam.k;cam.k=k;camApply()};
 function camInit(){const st=$('#vw');if(!$('#world'))return;
- if(!cam){const sw=st.clientWidth,sh=st.clientHeight,k=Math.max(.3,Math.min(1,(sw-40)/lay.W,(sh-80)/lay.H));cam={k,x:Math.max(20,(sw-lay.W*k)/2),y:40}}
- camApply();let d=null;
- st.onpointerdown=e=>{moved=false;if(!e.target.closest('.zc'))d={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y}};
- st.onpointermove=e=>{if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;cam.x=d.cx+dx;cam.y=d.cy+dy;camApply()};
- st.onpointerup=st.onpointerleave=()=>d=null;
+ if(!cam){const sw=st.clientWidth,sh=st.clientHeight,k=Math.max(.12,Math.min(1,(sw-40)/lay.W,(sh-80)/lay.H));cam={k,x:Math.max(20,(sw-lay.W*k)/2),y:40}}
+ camApply();if(st._b)return;st._b=1; // listeners posés une seule fois par élément
+ const ptr=new Map();let d=null,pin=0;
+ st.onpointerdown=e=>{moved=false;if(e.target.closest('.zc'))return;ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptr.size===1)d={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};else if(ptr.size===2){d=null;const [a,b]=[...ptr.values()];pin=Math.hypot(a.x-b.x,a.y-b.y)}};
+ st.onpointermove=e=>{if(!ptr.has(e.pointerId))return;ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptr.size===2&&pin){moved=true;const [a,b]=[...ptr.values()],dist=Math.hypot(a.x-b.x,a.y-b.y),r=st.getBoundingClientRect(); // pincement : zoom autour du centre des deux doigts
+   zoomAt((a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top,dist/pin);pin=dist;return}
+  if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;cam.x=d.cx+dx;cam.y=d.cy+dy;camApply()};
+ const up=e=>{ptr.delete(e.pointerId);if(ptr.size<2)pin=0;if(ptr.size===1){const q=[...ptr.values()][0];d={x:q.x,y:q.y,cx:cam.x,cy:cam.y}}else if(!ptr.size)d=null};
+ st.onpointerup=st.onpointercancel=up;
  st.addEventListener('click',e=>{if(moved){e.stopPropagation();moved=false}},true);
  st.addEventListener('wheel',e=>{e.preventDefault();const r=st.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.1:1/1.1)},{passive:false})}
-function treeView(){const L=lay=layout();return`<div id=world><svg class=lines width=${L.W} height=${L.H}>${L.svg}</svg>${L.cards}</div><div class=zc><button data-act=zoom data-v=1>＋</button><button data-act=zoom data-v=-1>−</button><button data-act=fit title="Recentrer">⤢</button></div>`}
+function treeView(){const L=lay=layout();return`<div id=world><svg class=lines width=${L.W} height=${L.H}>${L.svg}</svg>${L.cards}</div><div class=zc><button data-act=zoom data-v=1 title="Zoom avant">＋</button><button data-act=zoom data-v=-1 title="Zoom arrière">−</button><button data-act=fit title="Recentrer sur l’arbre" aria-label="Recentrer sur l’arbre">🎯</button></div>`}
 
 function fanView(){
  const root=get(sel)||P().sort((a,b)=>(a.birth||'9').localeCompare(b.birth||'9'))[0],R0=64,RW=72,G=5,cx=450,cy=R0+RW*G+14,S={};
@@ -345,7 +387,7 @@ function popHtml(p){
  return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop>✕</button></div><div class=ph>${p.photo?`<img class=bigph src="${p.photo}" alt="">`:av(p,'lg')}<h2>${esc(nm(p))}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
  ${p.birth||p.birthPlace?`<div>🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
  ${p.alive===false?`<div>🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
- ${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.voice?`<h4>🎙️ Message vocal</h4><audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}
+ ${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.voice?`<h4>🎙️ Message vocal</h4><audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}
  ${rel('Parents',p.parents.map(get).filter(Boolean))}${rel('En couple avec',[get(p.partner)].filter(Boolean))}${rel('Enfants',kids(p))}${rel('Fratrie',sibs(p))}
  ${rank()>=1?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}">🗑️</button></div>`:''}</div>`}
 let popId=null;
@@ -360,11 +402,14 @@ function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines<
  <div class=row><button class=pri data-act=newTree>＋ Nouvel arbre</button><button data-act=import>📥 Importer une sauvegarde</button></div><h3>Mes arbres</h3>
  ${HOME.length?HOME.map(t=>`<div class=tcard><div><b>${esc(t.name)}</b><br><small>${Object.values(t.persons).filter(p=>!p.del).length} personne(s) · modifié le ${new Date(t.updated).toLocaleDateString('fr-FR')}</small></div><button class=pri data-act=open data-id="${t.id}">Ouvrir</button><button data-act=delTree data-id="${t.id}" title="Supprimer">🗑️</button></div>`).join(''):'<p class=mut>Aucun arbre pour l’instant.</p>'}</div></div>`}
 
+let bnHide=false;
 function render(){
- $('#hd').innerHTML=`<b class=logo data-act=home>🌳 Racines</b>`+(T?`<span class=tname>${esc(T.name)}</span><nav class=tabs>${VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}">${l}</button>`).join('')}</nav><span class=sp></span>${rank()>=1?'<button class=pri data-act=add>＋ Personne</button>':''}${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️ Annuler</button>`:''}<button data-act=live>${live.peer?`🔴 Live · ${Object.keys(live.peers).length}`:'📡 Live'}</button><button data-act=export>💾 Exporter</button>${rank()>=2?'<button data-act=settings title="Infos de l’arbre">⚙️</button>':`<span class=mut title="Ton rôle dans la session">${ROLE_LABEL[myRole()]}</span>`}`:`<span class=sp></span><button data-act=live>📡 Session live</button>`);
+ const nT=T&&T.tickets?T.tickets.length:0;
+ $('#hd').innerHTML=`<b class=logo data-act=home title="Mes arbres">🌳<span class=lb> Racines</span></b>`+(T?`<span class=tname>${esc(T.name)}</span>${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️<span class=lb> Annuler</span></button>`:''}${rank()>=1?'<button class=pri data-act=add title="Ajouter une personne">＋<span class=lb> Personne</span></button>':''}${nT&&rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets title="Nouvelles entrées à valider">🎫<span class=badge>${nT}</span></button>`:''}<button data-act=live title="Session live">${live.peer?'🔴':'📡'}<span class=lb> Live</span>${live.peer?' '+Object.keys(live.peers).length:''}</button><span class=mw><button data-act=menu title="Menu">⋯</button><div id=mnu><button data-act=export>💾 Exporter la sauvegarde</button>${rank()>=2?'<button data-act=settings>⚙️ Infos de l’arbre</button>':''}<button data-act=home>🗂️ Mes arbres</button><small class=mut>Ton rôle : ${ROLE_LABEL[myRole()]}</small></div></span>`:`<span class=sp></span><button data-act=live>📡<span class=lb> Session live</span></button>`);
+ $('#nv').innerHTML=T?VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}"><span class=ic>${l.split(' ')[0]}</span><span class=tl>${l.split(' ').slice(1).join(' ')}</span></button>`).join(''):'';
  const mn=$('#mn'),bn=$('#bn');
  if(!T){popId=null;popup();bn.innerHTML='';mn.innerHTML=homeView();return}
- bn.innerHTML=P().length&&(!T.lastExport||(T.updated>T.lastExport&&now()-T.lastExport>864e5))?`<div class=banner>💾 Pense à exporter ta sauvegarde (${T.lastExport?'dernier export : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais exportée'}). Tout est stocké uniquement sur cet appareil. <button data-act=export>Exporter maintenant</button></div>`:'';
+ bn.innerHTML=!bnHide&&P().length&&(!T.lastExport||(T.updated>T.lastExport&&now()-T.lastExport>864e5))?`<div class=banner><span>💾 Sauvegarde non exportée (${T.lastExport?'dernière : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais'}) — tout est stocké sur cet appareil uniquement.</span><button data-act=export>Exporter</button><button class=x data-act=bnclose>✕</button></div>`:'';
  let body;
  try{body=!P().length?`<div class=empty-st><div><div style="font-size:60px">🌱</div><h2>Plante la première graine</h2><p class=mut>Ajoute la première personne de ton arbre.</p><button class=pri data-act=add>＋ Ajouter une personne</button></div></div>`:{tree:treeView,fan:fanView,time:timeView,gen:genView,stats:statsView}[view]()}
  catch(e){console.error(e);body=`<p>Erreur d’affichage : ${esc(e.message)}</p>`}
@@ -372,6 +417,30 @@ function render(){
  mn.innerHTML=`<div id=vw class="${view==='tree'&&!empty?'st':'scroll'}">${body}</div>`;
  if(view==='tree'&&!empty)camInit();
  popup()}
+
+/* ---------- salle des tickets : ajouts proposés par un invité à son arrivée ---------- */
+let tkOv=null,tkOpen=null;
+const FL={first:'Prénom(s)',last:'Nom',maiden:'Nom de jeune fille',gender:'Genre',birth:'Naissance',birthPlace:'Lieu de naissance',alive:'Statut',death:'Décès',deathPlace:'Lieu de décès',job:'Métier',story:'Anecdote',photo:'Photo',voice:'Vocal',parents:'Parents',partner:'Conjoint·e'};
+const GL={F:'Femme',M:'Homme',X:'Autre'};
+const rawF=(p,k)=>!p?'':k==='parents'?p.parents.join():k==='alive'?(p.alive===false?'d':'v'):(p[k]||'');
+const showF=(p,k)=>{const nmOf=id=>{const q=get(id);return q?nm(q):'(fiche inconnue)'};
+ return k==='parents'?p.parents.map(nmOf).join(' & '):k==='partner'?(p.partner?nmOf(p.partner):''):k==='alive'?(p.alive===false?'Décédé(e)':'Vivant(e)'):k==='gender'?GL[p.gender]||'':k==='birth'||k==='death'?fmt(p[k]):p[k]||''};
+function diffRows(t){const b=get(t.pid),a=t.after,rows=[];
+ for(const k in FL){const ov=rawF(b,k),nv=rawF(a,k);if(ov===nv||(!b&&k==='alive'&&nv==='v'))continue;
+  const kind=!ov||(!b&&k==='alive')?'add':!nv?'del':'mod'; // rose = ajouté, orange = modifié, rouge = supprimé
+  const cell=(p,w)=>k==='photo'?(p.photo?`<img class=thumb src="${p.photo}" alt="">`:''):k==='voice'?`<small>${w==='new'?'Proposé':'Actuel'}</small><audio controls data-tk="${t.id}:${w}" onclick="event.stopPropagation()"></audio>`:esc(showF(p,k));
+  const html=kind==='add'?cell(a,'new'):kind==='del'?`<s>${cell(b,'old')}</s>`:k==='voice'?cell(b,'old')+cell(a,'new'):`${cell(b,'old')} → ${cell(a,'new')}`;
+  rows.push(`<div class="dr d-${kind}"><b>${FL[k]}</b>${html}</div>`)}
+ return rows}
+function ticketsUI(open){
+ if(open&&!tkOv){tkOv=el('<div class=ov id=tk></div>');document.body.append(tkOv)}
+ if(!tkOv||!tkOv.isConnected)return;
+ const L=T.tickets||[],st=tkOv.firstElementChild?tkOv.firstElementChild.scrollTop:0;
+ tkOv.innerHTML=`<div class=wz style="width:min(720px,100%)"><div class=wt><span>🎫 Nouvelles entrées (${L.length})</span><button class=x data-act=tkclose>✕</button></div><p class="hint legend"><span class=d-add>ajouté</span><span class=d-mod>modifié</span><span class=d-del>supprimé</span> · touche un ticket pour voir le détail</p>`+
+ (L.length?[...L].sort((x,y)=>y.at-x.at).map(t=>{const cur=get(t.pid)||t.after,rows=tkOpen===t.id?(t.after.del?['<div class="dr d-del">Cette personne est supprimée de l’arbre</div>']:diffRows(t)):null;
+  return`<div class=tk><div class=tk-main data-act=tkopen data-id="${t.id}"><div class=tk-meta>👤 ${esc(t.who)} · ${new Date(t.at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'medium'})}</div><div class=tk-person>${av(cur)}<div><b>${esc(nm(cur))}</b><small>${get(t.pid)?'Fiche existante':'Nouvelle fiche'}</small></div></div>${rows?rows.join('')||'<div class=dr>Aucune différence avec l’arbre actuel</div>':''}</div><div class=tk-btns><button class=ok data-act=tkok data-id="${t.id}" title="Valider">✅</button><button class=no data-act=tkno data-id="${t.id}" title="Refuser">❌</button></div></div>`}).join(''):'<p class=hint>Aucune nouvelle entrée 🎉</p>')+'</div>';
+ tkOv.firstElementChild.scrollTop=st;
+ $$('audio[data-tk]',tkOv).forEach(a=>{const [id,w]=a.dataset.tk.split(':'),t=L.find(x=>x.id===id);a.src=blobUrl(w==='new'?t.after.voice:(get(t.pid)||{}).voice)})}
 
 /* ---------- actions ---------- */
 async function goHome(){HOME=await allTrees();T=null;hist=[];sel=null;render()}
@@ -382,7 +451,7 @@ const ACT={
  newTree(){treeWizard({name:'',family:'',origin:'',author:ME.name,about:''})},
  settings(){treeWizard({name:T.name,family:T.family,origin:T.origin,author:T.author,about:T.about},true)},
  import(){$('#imp').click()},
- export(){T.lastExport=now();saveTree(T);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'racines',v:1,tree:T})],{type:'application/json'}));a.download=`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.racines.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('💾 Sauvegarde exportée');render()},
+ export(){T.lastExport=now();saveTree(T);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'racines',v:1,tree:wire(T)})],{type:'application/json'}));a.download=`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.racines.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('💾 Sauvegarde exportée');render()},
  view({v}){view=v;render()},
  add(){openPerson()},
  select({id}){sel=popId=id||null;presence();render()},
@@ -397,17 +466,30 @@ const ACT={
   recorded(`suppression de ${nm(p)}`,()=>{const q=get(p.partner);if(q){q.partner='';commit(q)}Object.assign(p,{del:true,photo:'',voice:'',partner:''});commit(p)});
   sel=popId=null;render();toast('🗑️ Supprimé','Annuler',undo)},
  undo(){undo()},
+ menu(){$('#mnu').classList.toggle('open')},
+ bnclose(){bnHide=true;render()},
+ tickets(){tkOpen=null;ticketsUI(true)},
+ tkclose(){if(tkOv){tkOv.remove();tkOv=null}},
+ tkopen({id}){tkOpen=tkOpen===id?null:id;ticketsUI()},
+ tkok({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;
+  if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.`))return;
+  T.tickets=T.tickets.filter(x=>x.id!==id);
+  recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
+ tkno({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t||!confirm(`Refuser les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nCe ticket sera supprimé, l’arbre actuel reste inchangé.`))return;
+  T.tickets=T.tickets.filter(x=>x.id!==id);saveTree(T);render();ticketsUI();toast('❌ Ticket refusé')},
  async playalt({id}){const p=get(id);if(!p||!p.voice)return; // lecture par Web Audio (autre chemin de sortie, volume x2)
   try{const ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();const buf=await ac.decodeAudioData(await(await fetch(blobUrl(p.voice))).arrayBuffer()),s=ac.createBufferSource(),g=ac.createGain();g.gain.value=2;s.buffer=buf;s.connect(g);g.connect(ac.destination);s.start();s.onended=()=>ac.close()}catch{toast('Lecture impossible sur cet appareil')}},
  zoom({v}){const r=$('#vw').getBoundingClientRect();zoomAt(r.width/2,r.height/2,+v>0?1.25:.8)},
  fit(){cam=null;camInit()},
  live(){liveUI(true)}
 };
-const NEED={add:1,edit:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
-document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a||!ACT[a.dataset.act])return;if(NEED[a.dataset.act]>rank())return toast('Droits insuffisants pour cette action');ACT[a.dataset.act](a.dataset)});
+const NEED={add:1,edit:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2,tickets:2,tkopen:2,tkok:2,tkno:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
+document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');
+ if(!a||a.dataset.act!=='menu'){const m=$('#mnu');if(m)m.classList.remove('open')} // menu ⋯ : se referme au prochain clic
+ if(!a||!ACT[a.dataset.act])return;if(NEED[a.dataset.act]>rank())return toast('Droits insuffisants pour cette action');ACT[a.dataset.act](a.dataset)});
 document.addEventListener('input',e=>{if(e.target.id==='flt'){const v=e.target.value.toLowerCase();$$('.grid .card').forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
 document.addEventListener('keydown',e=>{
- if(e.key==='Escape'){const o=$$('.ov').pop();if(o){if(o._close)return o._close();o.remove();if(o===liveOv)liveOv=null;if(o.id==='pop')popId=null}}
+ if(e.key==='Escape'){const o=$$('.ov').pop();if(o){if(o._close)return o._close();o.remove();if(o===liveOv)liveOv=null;if(o===tkOv)tkOv=null;if(o.id==='pop')popId=null}}
  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&T&&hist.length&&!$('.ov:not(#pop)')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo()}});
 $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  try{const o=JSON.parse(await f.text());if(o.app!=='racines'||!o.tree||!o.tree.id)throw 0;const r=norm(o.tree);HOME=await allTrees();const l=HOME.find(t=>t.id===r.id);
@@ -458,11 +540,20 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
   if(!known&&!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} » (en tant qu’Invité : lecture seule, tu pourras changer son rôle ensuite). Accepter ?`)){c.close();return}
   if(did)for(const [k,d] of Object.entries(live.dids))if(d===did){const old=live.conns.find(x=>x.peer===k);live.conns=live.conns.filter(x=>x!==old);delete live.peers[k];delete live.dids[k];if(old)old.close()} // même appareil qui revient : on remplace l'ancienne connexion
   live.conns.push(c);live.peers[c.peer]={...me,role:known&&known.role in RK?known.role:'guest'};
-  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',tree:T});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
- case'tree':{if(live.host&&rankOf(c)<1)return;const r=norm(m.tree);if(live.host&&rankOf(c)<2)r.mu=0;let n=0;
-  if(!live.host&&(!T||T.id!==r.id)){const l=(await allTrees()).find(t=>t.id===r.id);if(l){mergeTree(l,r);T=l}else T=r;view='tree';cam=null;sel=null;hist=[];n=1}else if(T&&T.id===r.id)n=mergeTree(T,r);
-  if(!T)return;await saveTree(T);if(!live.host&&!live.sent){live.sent=1;c.send({t:'tree',tree:T})}if(live.host&&n)send({t:'tree',tree:T},c);render();break}
- case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(m.p),l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host)send(m,c);render();break}
+  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',tree:wire(T)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
+ case'tree':{if(live.host)return; // l'hôte ne reçoit jamais d'arbre complet : les ajouts d'un invité arrivent sous forme de tickets
+  const r=norm(m.tree),l=T&&T.id===r.id?T:(await allTrees()).find(x=>x.id===r.id),items=l?proposals(l,r):[];
+  if(items.length)await saveTree({...l,id:l.id+'-av-'+now().toString(36),name:l.name+' (avant fusion)',su:undefined,tickets:[]}); // copie de sécurité de la version locale
+  r.su=Object.fromEntries(Object.entries(r.persons).map(([k,p])=>[k,p.u]));if(l&&l.lastExport)r.lastExport=l.lastExport;
+  T=r;hist=[];view='tree';cam=null;sel=null;await saveTree(T);
+  items.forEach(it=>c.send({t:'prop',item:it}));
+  if(items.length)toast(`🎫 ${items.length} de tes modification(s) hors-ligne ont été envoyées à l’hôte pour validation. Ta version précédente est gardée dans « Mes arbres ».`);
+  render();break}
+ case'prop':{if(!live.host||!live.conns.includes(c)||!m.item||!m.item.after||!m.item.after.id)return;
+  const after=normP(m.item.after),did=live.dids[c.peer]||'',who=(live.peers[c.peer]||{}).name||'?';
+  T.tickets=(T.tickets||[]).filter(x=>!(did&&x.did===did&&x.pid===after.id)); // un seul ticket par appareil et par fiche
+  T.tickets.push({id:rid(),who,did,at:now(),pid:after.id,after});saveTree(T);toast(`🎫 ${who} propose une modification`);render();ticketsUI();break}
+ case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(m.p),l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;(T.su=T.su||{})[p.id]=p.u;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host)send(m,c);render();break}
  case'm':{if(!T||!m.m||(live.host&&rankOf(c)<2))return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
  case'sel':{if(live.host&&live.peers[c.peer]){live.peers[c.peer].sel=typeof m.id==='string'?m.id:null;bcastPeers();render()}break}
  case'role':{if(live.host&&rankOf(c)>=2)setRole(m.to,m.role);break}

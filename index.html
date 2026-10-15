@@ -107,6 +107,30 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 @keyframes bob{50%{transform:translateY(-5px) rotate(4deg)}}
 @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 @keyframes cf{to{transform:translate(var(--dx),var(--dy)) rotate(360deg);opacity:0}}
+
+.wv{inset:0 0 auto 0;height:100vh;height:100dvh;padding:0;place-items:end center}
+.wz2{padding:0;display:flex;flex-direction:column;height:min(620px,100%);max-height:100%;width:min(560px,100%);border-radius:18px 18px 0 0;overflow:hidden}
+@media(min-width:761px){.wv{place-items:center;padding:12px}.wz2{border-radius:18px;height:min(640px,100%)}}
+.wh{padding:8px 10px 4px;border-bottom:1px solid var(--line);flex:none}
+.wb{flex:1;min-height:0;overflow:auto;padding:6px 16px 10px;overscroll-behavior:contain}
+.wz2 .nav{flex:none;margin:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
+.wz2 .nav button{min-height:48px;padding:0 16px}.wz2 .nav button[data-w=fin]{flex:1}
+.rail{display:flex;gap:2px;overflow-x:auto}
+.ri{flex:1;min-width:44px;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:0;border-radius:12px;background:none;padding:2px;position:relative;opacity:.7}
+.ri-i{font-size:20px;line-height:1.1}.ri-l{font-size:10px;line-height:1.1}
+.ri.on{opacity:1;background:#3f7d5826;box-shadow:inset 0 0 0 2px var(--acc)}
+.ri.ok,.ri.bad{opacity:1}
+.ri.ok::after,.ri.bad::after{position:absolute;top:1px;right:3px;width:15px;height:15px;border-radius:50%;font-size:10px;font-weight:700;display:grid;place-items:center;color:#fff}
+.ri.ok::after{content:'✓';background:var(--acc);color:var(--accink)}.ri.bad::after{content:'!';background:#e5484d}
+.wz2 h2{font-size:18px}.wz2 .big{font-size:34px}
+.kb .big,.kb .hint,.kb .react{display:none}.kb .wz2 h2{font-size:16px;margin:.2em 0}
+.opts.g3 .opt{padding:12px 4px;font-size:15px}
+.body>input,.body>.dtw,.body>.opts{margin-bottom:8px}
+.dtw{display:flex;gap:6px;position:relative}.dtw .cal{width:48px;flex:none}
+.dtn{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.fr{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}.fr>div{flex:1;min-width:0}
+.eb{flex:none;width:44px;height:44px;padding:0;border-radius:12px;font-size:16px}.ph h2 .eb{width:38px;height:38px}
+.miss{margin:8px 0}.eb2{margin:3px;border-style:dashed;min-height:44px}
 </style>
 </head>
 <body>
@@ -191,7 +215,7 @@ function undo(){const h=hist.pop();if(!h||rank()<1)return;let t=now();
  T.updated=t;saveTree(T);render();toast('↩️ Annulé : '+h.label)}
 
 /* ---------- assistant pas-à-pas (arbre & personnes) ---------- */
-const fn=d=>(d.first||'').trim().split(/\s+/)[0]||'Cette personne';
+const fn=d=>(d.first||'').trim().split(/\s+/)[0]||'cette personne';
 const ne=d=>d.gender==='F'?'née':d.gender==='M'?'né':'né(e)';
 const Q=['Quelle phrase répétait-il/elle tout le temps ?','Un plat ou une recette qu’on associe à cette personne ?','Ton plus beau souvenir avec elle/lui ?','Une passion, une manie, un petit travers attachant ?','Un objet qui lui appartenait et qu’on garde précieusement ?','Que raconte-t-on de lui/elle aux repas de famille ?','Un lieu où il/elle se sentait chez soi ?','Quel conseil donnait-il/elle ?'];
 const SUG=['Garder les histoires de mes grands-parents','Un cadeau pour la famille','Par pure curiosité','Retrouver une branche perdue'];
@@ -218,28 +242,45 @@ function blobUrl(u){if(!u)return'';let b=BU.get(u);if(!b){const i=u.indexOf(',')
  if(BU.size>20){BU.forEach(v=>URL.revokeObjectURL(v));BU.clear()}b=URL.createObjectURL(new Blob([a],{type:u.slice(5,i).replace(/;base64$/,'')}));BU.set(u,b)}return b}
 const av=(p,c='')=>`<span class="av ${c}" style="${p.photo?`background-image:url(${p.photo})`:''}">${p.photo?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}</span>`;
 
-function wizard({steps,d,title,edit,done}){
- let i=0;const ov=el('<div class=ov></div>'),v0=d.voice;document.body.append(ov);
- const closeW=()=>{if(d.voice&&d.voice!==v0&&!confirm('Le vocal que tu viens d’enregistrer n’est pas sauvegardé et sera perdu. Fermer quand même ?'))return;if(rec)rec.stop();ov.remove()};ov._close=closeW;
+const coarse=matchMedia('(pointer:coarse)').matches; // écran tactile : le clavier ne s'ouvre jamais tout seul
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+// saisie de date assistée : 14031952 -> 14/03/1952 ; si l'utilisateur tape lui-même des "/", on ne touche à rien
+const fmtDateInput=v=>{if(/[^\d\/.\-\s]/.test(v)||/[\/.\-]/.test(v))return v;const g=v.replace(/\D/g,'');return g.length<=4?g:g.slice(0,2)+'/'+g.slice(2,4)+(g.length>4?'/'+g.slice(4,8):'')};
+const dateField=(n,v,ph)=>`<div class=dtw><input name=${n} inputmode=numeric autocomplete=off placeholder="${ph}" value="${esc(v)}"><button type=button class=cal data-cal=${n} aria-label="Choisir dans le calendrier">📅</button><input type=date class=dtn data-for=${n} tabindex=-1 aria-hidden=true></div>`;
+
+function wizard({steps,d,title,edit,done,start}){
+ let i=0;const ov=el('<div class="ov wv"></div>'),v0=d.voice,seen=new Set(),vv=window.visualViewport;document.body.append(ov);
+ // le clavier réduit la zone visible : la fenêtre s'y cale au lieu de sauter
+ const fit=()=>{if(!vv)return;ov.style.height=vv.height+'px';ov.style.top=vv.offsetTop+'px';ov.classList.toggle('kb',vv.height<innerHeight*.78)};
+ if(vv){vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);fit()}
+ const end=()=>{if(vv){vv.removeEventListener('resize',fit);vv.removeEventListener('scroll',fit)}ov.remove()};
+ const closeW=()=>{if(d.voice&&d.voice!==v0&&!confirm('Le vocal que tu viens d’enregistrer n’est pas sauvegardé et sera perdu. Fermer quand même ?'))return;if(rec)rec.stop();end()};ov._close=closeW;
  const act=()=>steps.filter(s=>!s.when||s.when(d));
+ if(start){const j=act().findIndex(s=>s.k===start);if(j>=0)i=j}
  const rx=()=>{const s=act()[i],r=$('#rx',ov);if(r)r.textContent=s.react?s.react(d):''};
- const draw=()=>{const A=act();i=Math.max(0,Math.min(i,A.length-1));const s=A[i];
-  ov.innerHTML=`<div class=wz><div class=wt><span>${title}</span><button class=x data-w=close>✕</button></div><div class=dots>${A.map((_,j)=>`<i class="${j==i?'on':j<i?'done':''}" data-go=${j}></i>`).join('')}</div><div class=big>${s.icon}</div><h2>${esc(s.q(d))}</h2><p class=hint>${s.hint||''}</p><div class=body>${s.body(d)}</div><p class=react id=rx>${esc(s.react?s.react(d):'')}</p><div class=nav><button data-w=back ${i?'':'disabled'}>←</button>${i>0||edit?'<button class=lnk data-w=fin>Enregistrer et fermer</button>':''}<button class=pri data-w=next>${i==A.length-1?'Terminer ✨':'Suivant →'}</button></div></div>`;
+ const draw=()=>{const A=act();i=Math.max(0,Math.min(i,A.length-1));const s=A[i],last=i===A.length-1;seen.add(s.k);
+  // rail : étape en cours (cadre), remplie (✓), invalide après passage (!)
+  const rail=A.map((x,j)=>{const bad=j!==i&&seen.has(x.k)&&x.check&&x.check(d),ok=x.has&&x.has(d);
+   return`<button class="ri ${j===i?'on':''} ${bad?'bad':ok?'ok':''}" data-go=${j} aria-label="${esc(x.lb)}"><span class=ri-i>${x.icon}</span><span class=ri-l>${esc(x.lb)}</span></button>`}).join('');
+  ov.innerHTML=`<div class="wz wz2"><div class=wh><div class=wt><span>${title}</span><button class=x data-w=close aria-label="Fermer">✕</button></div><div class=rail>${rail}</div></div><div class=wb><div class=big>${s.icon}</div><h2>${esc(s.q(d))}</h2><p class=hint>${s.hint||''}</p><div class=body>${s.body(d)}</div><p class=react id=rx>${esc(s.react?s.react(d):'')}</p></div><div class=nav><button data-w=back ${i?'':'disabled'} aria-label="Étape précédente">←</button><button class="${last?'pri':''}" data-w=fin>💾 Enregistrer</button>${last?'':'<button class=pri data-w=next>Suivant →</button>'}</div></div>`;
   $$('audio[data-d]',ov).forEach(a=>a.src=blobUrl(d.voice));
-  const f=$('input:not([type=file]),textarea',ov);f&&f.focus()};
- const fin=()=>{if(rec){toast('Arrête d’abord l’enregistrement');return}for(const [j,s] of act().entries()){const e=s.check&&s.check(d);if(e){i=j;draw();toast(e);return}}ov.remove();done(d)};
+  if(!coarse){const f=$('input:not([type=file]):not([type=date]),textarea',ov);f&&f.focus()}};
+ const fin=()=>{if(rec){toast('Arrête d’abord l’enregistrement');return}for(const [j,s] of act().entries()){const e=s.check&&s.check(d);if(e){i=j;draw();toast(e);return}}end();done(d)};
  const next=()=>{const A=act(),e=A[i].check&&A[i].check(d);if(e){toast(e);const w=$('.wz',ov);w.classList.add('shake');setTimeout(()=>w.classList.remove('shake'),400);return}i<A.length-1?(i++,draw()):fin()};
- ov.addEventListener('input',e=>{const t=e.target;if(t.name){d[t.name]=t.value;rx()}
+ ov.addEventListener('input',e=>{const t=e.target;if(t.name){if(t.name==='birth'||t.name==='death'){const f=fmtDateInput(t.value);if(f!==t.value)t.value=f}d[t.name]=t.value;rx()}
   if(t.classList.contains('flt')){const v=t.value.toLowerCase();$$('[data-n]',ov).forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
- ov.addEventListener('change',async e=>{if(e.target.type==='file'&&e.target.files[0]){d.photo=await resize(e.target.files[0]);draw()}});
- ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'){e.preventDefault();next()}});
- ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug],[data-rec],[data-rmv],[data-restore]');if(!t)return;const D=t.dataset;
+ ov.addEventListener('change',async e=>{const t=e.target;
+  if(t.type==='file'&&t.files[0]){d.photo=await resize(t.files[0]);draw()}
+  else if(t.classList.contains('dtn')&&t.value){d[t.dataset.for]=dispIn(t.value);draw()}});
+ ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'&&e.target.type!=='date'){e.preventDefault();next()}});
+ ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug],[data-rec],[data-rmv],[data-restore],[data-cal]');if(!t)return;const D=t.dataset;
   if(D.w==='close')closeW();
+  else if(D.cal){const n=$(`.dtn[data-for=${D.cal}]`,ov);try{n.showPicker()}catch{n.click()}}
   else if(D.rec!==undefined){if(!rec&&d.voice){if(d.voice===v0&&!confirm('Un vocal est déjà enregistré. Le réenregistrer le REMPLACERA (tu pourras le retrouver ici tant que tu ne fermes pas cette fenêtre). Continuer ?'))return;d.voicePrev=d.voice}recToggle(d,draw)}
   else if(D.rmv!==undefined){if(confirm('Supprimer ce vocal ?')){d.voicePrev=d.voice;d.voice='';draw()}}
   else if(D.restore!==undefined){d.voice=d.voicePrev;draw()}else if(D.w==='back'){i--;draw()}else if(D.w==='next')next();else if(D.w==='fin')fin();
   else if(D.go){i=+D.go;draw()}
-  else if(D.k){d[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;const s=act()[i];if(s.auto&&s.auto(d)){draw();setTimeout(next,250)}else draw()}
+  else if(D.k){d[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;draw()}
   else if(D.pick==='parents'){const a=d.parents,j=a.indexOf(D.id);if(j>=0)a.splice(j,1);else if(a.length<2)a.push(D.id);else toast('Deux parents maximum');t.classList.toggle('on',a.includes(D.id));rx()}
   else if(D.pick==='partner'){d.partner=d.partner===D.id?'':D.id;$$('[data-pick=partner]',ov).forEach(x=>x.classList.toggle('on',x.dataset.id===d.partner));rx()}
   else if(D.dice!==undefined){d.storyQ=pick(Q,d.storyQ);draw()}
@@ -248,46 +289,43 @@ function wizard({steps,d,title,edit,done}){
  draw();return ov}
 
 const personSteps=id=>[
- {icon:'🌱',q:()=>'Comment s’appelle cette personne ?',hint:'Prénom(s) d’usage et nom de famille.',
-  body:d=>`<input name=first placeholder="Prénom(s)" value="${esc(d.first)}"><input name=last placeholder="Nom" value="${esc(d.last)}">`,
+ {k:'id',icon:'🪪',lb:'Identité',q:()=>'Qui est cette personne ?',has:d=>d.first||d.last,
+  body:d=>`<input name=first placeholder="Prénom(s)" autocapitalize=words autocomplete=off enterkeyhint=next value="${esc(d.first)}"><input name=last placeholder="Nom" autocapitalize=words autocomplete=off enterkeyhint=next value="${esc(d.last)}"><div class="opts g3">${[['F','👩 Femme'],['M','👨 Homme'],['X','🧑 Autre']].map(([v,l])=>`<button class="opt ${d.gender===v?'on':''}" data-k=gender data-v=${v}>${l}</button>`).join('')}</div>${d.gender==='F'||d.maiden?`<input name=maiden placeholder="Nom de jeune fille (si connu)" autocapitalize=words autocomplete=off value="${esc(d.maiden)}">`:''}`,
   react:d=>d.first.trim()?`Enchanté, ${fn(d)} ! 👋`:'',check:d=>!(d.first.trim()||d.last.trim())&&'Il faut au moins un prénom ou un nom'},
- {icon:'🧬',q:d=>`${fn(d)} est…`,body:d=>`<div class=opts>${[['F','Une femme 👩'],['M','Un homme 👨'],['X','Autre 🧑']].map(([v,l])=>`<button class="opt ${d.gender===v?'on':''}" data-k=gender data-v=${v}>${l}</button>`).join('')}</div>`,auto:()=>true},
- {icon:'🔑',when:d=>d.gender==='F'||d.maiden,q:d=>`${fn(d)} portait quel nom avant le mariage ?`,hint:'Le nom de jeune fille ouvre souvent une nouvelle branche. Laisse vide si inconnu.',
-  body:d=>`<input name=maiden placeholder="Nom de jeune fille" value="${esc(d.maiden)}">`,react:d=>d.maiden?`Une nouvelle branche à explorer, peut-être ? 🕵️`:''},
- {icon:'🎂',q:d=>`Quand est ${ne(d)} ${fn(d)} ?`,hint:'JJ/MM/AAAA, MM/AAAA ou juste l’année. Vide si inconnue.',
-  body:d=>`<input name=birth placeholder="ex. 14/03/1952 ou 1952" value="${esc(d.birth)}"><input name=birthPlace placeholder="Lieu de naissance (ville, pays)" value="${esc(d.birthPlace)}">`,
+ {k:'birth',icon:'🎂',lb:'Naissance',q:d=>`Quand est ${ne(d)} ${fn(d)} ?`,hint:'Tape 14031952 (les / s’ajoutent), ou juste l’année, ou touche 📅. Vide si inconnue.',has:d=>d.birth||d.birthPlace,
+  body:d=>dateField('birth',d.birth,'JJ/MM/AAAA ou AAAA')+`<input name=birthPlace placeholder="Lieu de naissance (ville, pays)" autocapitalize=words autocomplete=off value="${esc(d.birthPlace)}">`,
   check:d=>parseDate(d.birth)===null&&'Date non reconnue — essaie 14/03/1952 ou 1952',
   react:d=>{const iso=parseDate(d.birth);if(!iso)return'';const a=iso.split('-').map(Number);
    if(a.length==3)return`✨ Un ${new Date(a[0],a[1]-1,a[2]).toLocaleDateString('fr-FR',{weekday:'long'})}, sous le signe ${zodiac(a[1],a[2])}`;
    return`✨ C’était il y a ${new Date().getFullYear()-a[0]} ans`}},
- {icon:'🌤️',q:d=>`${fn(d)} est-${d.gender==='F'?'elle':d.gender==='M'?'il':'iel'} toujours parmi nous ?`,
-  body:d=>`<div class=opts><button class="opt ${d.alive!==false?'on':''}" data-k=alive data-v=true>Oui 🌤️</button><button class="opt ${d.alive===false?'on':''}" data-k=alive data-v=false>Non 🕊️</button></div>`+(d.alive===false?`<br><input name=death placeholder="Date de décès (ex. 02/11/2011 ou 2011)" value="${esc(d.death)}"><input name=deathPlace placeholder="Lieu de décès" value="${esc(d.deathPlace)}">`:''),
-  auto:d=>d.alive!==false,check:d=>d.alive===false&&parseDate(d.death)===null&&'Date de décès non reconnue',
+ {k:'life',icon:'🕊️',lb:'Vie',q:d=>`${cap(fn(d))} est-${d.gender==='F'?'elle':d.gender==='M'?'il':'iel'} toujours parmi nous ?`,has:d=>d.alive===false,
+  body:d=>`<div class=opts><button class="opt ${d.alive!==false?'on':''}" data-k=alive data-v=true>Oui 🌤️</button><button class="opt ${d.alive===false?'on':''}" data-k=alive data-v=false>Non 🕊️</button></div>`+(d.alive===false?`<br>${dateField('death',d.death,'Date de décès (JJ/MM/AAAA ou AAAA)')}<input name=deathPlace placeholder="Lieu de décès" autocapitalize=words autocomplete=off value="${esc(d.deathPlace)}">`:''),
+  check:d=>d.alive===false&&parseDate(d.death)===null&&'Date de décès non reconnue',
   react:d=>d.alive===false?`Une pensée pour ${fn(d)} 🕯️`:''},
- {icon:'📸',q:d=>`Un visage pour ${fn(d)} ?`,hint:'Optionnel. La photo est réduite et reste sur ton appareil.',
+ {k:'photo',icon:'📸',lb:'Photo',q:d=>`Un visage pour ${fn(d)} ?`,hint:'Optionnel. La photo est réduite et reste sur ton appareil.',has:d=>d.photo,
   body:d=>`<div style="text-align:center">${av(d,'lg')}</div><br><input type=file accept="image/*">${d.photo?'<p style="text-align:center"><button data-rm>Retirer la photo</button></p>':''}`,react:d=>d.photo?'Ça, c’est une belle bouille ! 😍':''},
- {icon:'🌳',when:()=>P().some(p=>p.id!==id),q:d=>`Où se place ${fn(d)} dans l’arbre ?`,hint:'Tout est optionnel — tu pourras relier plus tard.',
+ {k:'family',icon:'🌳',lb:'Famille',when:()=>P().some(p=>p.id!==id),q:d=>`Où se place ${fn(d)} dans l’arbre ?`,hint:'Tout est optionnel — tu pourras relier plus tard.',has:d=>d.parents.length||d.partner,
   body:d=>{const ex=id?descendants(id):new Set(),all=P().filter(p=>p.id!==id).sort((a,b)=>nm(a).localeCompare(nm(b)));
    const ch=(k,p)=>`<span class="chip ${(k==='parents'?d.parents.includes(p.id):d.partner===p.id)?'on':''}" data-pick=${k} data-id="${p.id}" data-n="${esc((nm(p)+' '+p.maiden).toLowerCase())}">${esc(nm(p))} <small>${yr(p.birth)||''}</small></span>`;
    return`<input class=flt placeholder="🔎 Chercher dans l’arbre…"><h4>Descendant(e) de… <small>(2 max)</small></h4><div class=chips>${all.filter(p=>!ex.has(p.id)).map(p=>ch('parents',p)).join('')||'<small>—</small>'}</div><h4>En couple avec…</h4><div class=chips>${all.map(p=>ch('partner',p)).join('')}</div>`},
-  react:d=>{const n=d.parents.map(get).filter(Boolean).map(nm);return n.length?`${fn(d)} descend de ${n.join(' & ')} 🌿`:''}},
- {icon:'📖',q:d=>`Une anecdote sur ${fn(d)} ?`,hint:'Optionnel — c’est ce qui donne vie à un arbre. Une phrase suffit !',
-  body:d=>`<input name=job placeholder="Métier / passion" value="${esc(d.job)}"><p><b>${esc(d.storyQ)}</b> <button data-dice title="Une autre question">🎲</button></p><textarea name=story rows=4 placeholder="Écris librement…">${esc(d.story)}</textarea>`},
- {icon:'🎙️',q:d=>`Un message vocal pour ${fn(d)} ?`,hint:'Optionnel : sa voix, ou toi qui racontes un souvenir (60 s max). Réécoutable par tous depuis la fiche.',
+  react:d=>{const n=d.parents.map(get).filter(Boolean).map(nm);return n.length?`${cap(fn(d))} descend de ${n.join(' & ')} 🌿`:''}},
+ {k:'story',icon:'📖',lb:'Histoire',q:d=>`Une anecdote sur ${fn(d)} ?`,hint:'Optionnel — c’est ce qui donne vie à un arbre. Une phrase suffit !',has:d=>d.job||d.story,
+  body:d=>`<input name=job placeholder="Métier / passion" autocomplete=off value="${esc(d.job)}"><p><b>${esc(d.storyQ)}</b> <button data-dice title="Une autre question">🎲</button></p><textarea name=story rows=4 placeholder="Écris librement…">${esc(d.story)}</textarea>`},
+ {k:'voice',icon:'🎙️',lb:'Vocal',q:d=>`Un message vocal pour ${fn(d)} ?`,hint:'Optionnel : sa voix, ou toi qui racontes un souvenir (60 s max). Réécoutable par tous depuis la fiche.',has:d=>d.voice,
   body:d=>`<div style="text-align:center">${rec?'<button class=opt data-rec>⏹ Arrêter</button><p>🔴 Enregistrement en cours… parle, la jauge doit bouger</p><progress id=lvl max=1 value=0 style="width:100%"></progress>':`<button class=opt data-rec>🎙️ ${d.voice?'Réenregistrer':'Enregistrer'}</button>`}${d.voice&&!rec?`<p><audio controls data-d style="width:100%"></audio></p><button data-rmv>Supprimer le vocal</button>`:''}${d.voicePrev&&d.voicePrev!==d.voice&&!rec?'<p><button data-restore>↩️ Retrouver l’ancien vocal</button></p>':''}</div>`,
   react:d=>d.voice?'Sa voix traversera les générations 🎶':''}
 ];
 const blank=()=>({first:'',last:'',maiden:'',gender:'',birth:'',birthPlace:'',alive:true,death:'',deathPlace:'',photo:'',voice:'',job:'',story:'',storyQ:'',parents:[],partner:''});
-function openPerson(id,pre={},after){
+function openPerson(id,pre={},after,start){
  const p=id&&T.persons[id];
  const d=p?{...blank(),...p,birth:dispIn(p.birth),death:dispIn(p.death),parents:[...p.parents],storyQ:p.storyQ||pick(Q)}:{...blank(),last:T.family||'',storyQ:pick(Q),...pre};
- wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,steps:personSteps(id),d,done:d=>{let np;recorded(p?`modification de ${nm(p)}`:'ajout d’une personne',()=>{np=savePerson(d,id);after&&after(np)});sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
+ wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,start,steps:personSteps(id),d,done:d=>{let np;recorded(p?`modification de ${nm(p)}`:'ajout d’une personne',()=>{np=savePerson(d,id);after&&after(np)});sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
 
 const treeSteps=[
- {icon:'🌳',q:()=>'Comment veux-tu appeler cet arbre ?',hint:'« Les Martin de Bretagne », « Mes racines »…',body:d=>`<input name=name value="${esc(d.name)}" placeholder="Arbre de la famille…">`,react:d=>d.name?`« ${d.name} » — joli nom, on plante ça ! 🌱`:'',check:d=>!d.name.trim()&&'Donne un nom à ton arbre'},
- {icon:'🏡',q:()=>'D’où vient cette famille ?',hint:'Nom de famille principal et origine : région, pays, village…',body:d=>`<input name=family value="${esc(d.family)}" placeholder="Nom de famille principal"><input name=origin value="${esc(d.origin)}" placeholder="Origine (région, pays, village…)">`,react:d=>d.origin?`${d.origin}… ça donne envie de voyager dans le temps ✈️`:''},
- {icon:'✍️',q:()=>'Qui tient la plume ?',hint:'Ton prénom : il servira de pseudo dans les sessions live.',body:d=>`<input name=author value="${esc(d.author)}" placeholder="Ton prénom">`,react:d=>d.author?`Ravi de te rencontrer, ${d.author} !`:''},
- {icon:'💭',q:()=>'Pourquoi crées-tu cet arbre ?',hint:'Optionnel : une intention, pour s’en souvenir.',body:d=>`<textarea name=about rows=3>${esc(d.about)}</textarea><div>${SUG.map(s=>`<span class=chip data-sug="${esc(s)}">${esc(s)}</span>`).join('')}</div>`}
+ {k:'name',lb:'Nom',has:d=>d.name,icon:'🌳',q:()=>'Comment veux-tu appeler cet arbre ?',hint:'« Les Martin de Bretagne », « Mes racines »…',body:d=>`<input name=name value="${esc(d.name)}" placeholder="Arbre de la famille…">`,react:d=>d.name?`« ${d.name} » — joli nom, on plante ça ! 🌱`:'',check:d=>!d.name.trim()&&'Donne un nom à ton arbre'},
+ {k:'family',lb:'Origine',has:d=>d.family||d.origin,icon:'🏡',q:()=>'D’où vient cette famille ?',hint:'Nom de famille principal et origine : région, pays, village…',body:d=>`<input name=family value="${esc(d.family)}" placeholder="Nom de famille principal"><input name=origin value="${esc(d.origin)}" placeholder="Origine (région, pays, village…)">`,react:d=>d.origin?`${d.origin}… ça donne envie de voyager dans le temps ✈️`:''},
+ {k:'author',lb:'Auteur',has:d=>d.author,icon:'✍️',q:()=>'Qui tient la plume ?',hint:'Ton prénom : il servira de pseudo dans les sessions live.',body:d=>`<input name=author value="${esc(d.author)}" placeholder="Ton prénom">`,react:d=>d.author?`Ravi de te rencontrer, ${d.author} !`:''},
+ {k:'about',lb:'Intention',has:d=>d.about,icon:'💭',q:()=>'Pourquoi crées-tu cet arbre ?',hint:'Optionnel : une intention, pour s’en souvenir.',body:d=>`<textarea name=about rows=3>${esc(d.about)}</textarea><div>${SUG.map(s=>`<span class=chip data-sug="${esc(s)}">${esc(s)}</span>`).join('')}</div>`}
 ];
 function treeWizard(d,edit){wizard({title:edit?'⚙️ Infos de l’arbre':'🌳 Nouvel arbre',edit,steps:treeSteps,d,done:d=>{
  ME.name=d.author.trim()||ME.name;LS('racines.me',ME.name);
@@ -383,13 +421,19 @@ function statsView(){const ps=P(),g=gens(),Y=new Date().getFullYear();
 
 function popHtml(p){
  const chip=q=>`<span class=chip data-act=select data-id="${q.id}">${esc(nm(q))}</span>`,rel=(l,a)=>a.length?`<h4>${l}</h4>${a.map(chip).join('')}`:'';
- const a=age(p);
- return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop>✕</button></div><div class=ph>${p.photo?`<img class=bigph src="${p.photo}" alt="">`:av(p,'lg')}<h2>${esc(nm(p))}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
- ${p.birth||p.birthPlace?`<div>🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
- ${p.alive===false?`<div>🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
- ${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.voice?`<h4>🎙️ Message vocal</h4><audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}
- ${rel('Parents',p.parents.map(get).filter(Boolean))}${rel('En couple avec',[get(p.partner)].filter(Boolean))}${rel('Enfants',kids(p))}${rel('Fratrie',sibs(p))}
- ${rank()>=1?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}">🗑️</button></div>`:''}</div>`}
+ const a=age(p),W=rank()>=1,
+  eb=s=>W?`<button class=eb data-act=editat data-id="${p.id}" data-s=${s} aria-label="Modifier" title="Modifier">✏️</button>`:'', // ouvre l'assistant directement sur cette étape
+  row=(s,h)=>`<div class=fr><div>${h}</div>${eb(s)}</div>`,
+  hasRel=p.parents.some(get)||get(p.partner)||kids(p).length,
+  miss=W?[[!p.photo,'photo','📸 Photo'],[!p.birth&&!p.birthPlace,'birth','🎂 Naissance'],[!p.job&&!p.story,'story','📖 Anecdote'],[!p.voice,'voice','🎙️ Vocal'],[!hasRel,'family','🌳 Famille']].filter(x=>x[0]).map(([,s,l])=>`<button class=eb2 data-act=editat data-id="${p.id}" data-s=${s}>＋ ${l}</button>`).join(''):'';
+ return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop aria-label="Fermer">✕</button></div><div class=ph>${p.photo?`<img class=bigph src="${p.photo}" alt="">${eb('photo')}`:av(p,'lg')}<h2>${esc(nm(p))} ${eb('id')}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
+ ${p.birth||p.birthPlace?row('birth',`🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}`):''}
+ ${p.alive===false?row('life',`🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}`):''}
+ ${p.job||p.story?row('story',`${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}`):''}
+ ${p.voice?row('voice',`<h4>🎙️ Message vocal</h4><audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`):''}
+ ${hasRel?row('family',rel('Parents',p.parents.map(get).filter(Boolean))+rel('En couple avec',[get(p.partner)].filter(Boolean))+rel('Enfants',kids(p))+rel('Fratrie',sibs(p))):''}
+ ${miss?`<div class=miss>${miss}</div>`:''}
+ ${W?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}" aria-label="Supprimer">🗑️</button></div>`:''}</div>`}
 let popId=null;
 function popup(){let ov=$('#pop');const p=get(popId);if(!p){if(ov)ov.remove();return}
  const h=popHtml(p);if(ov&&ov._h===h)return; // inchangée : on ne touche pas (préserve la lecture audio)
@@ -460,6 +504,7 @@ const ACT={
  pick({id}){sel=id;presence();render()},
  closePop(){popId=null;popup()},
  edit({id}){openPerson(id)},
+ editat({id,s}){openPerson(id,{},null,s)},
  addChild({id}){const p=get(id),q=get(p.partner);openPerson(null,{parents:[p.id,q&&q.id].filter(Boolean),last:p.gender==='F'&&q?q.last:p.last})},
  addPartner({id}){openPerson(null,{partner:id})},
  addParent({id}){openPerson(null,{},np=>{const c=T.persons[id];c.parents=[...c.parents,np.id].slice(0,2);commit(c)})},
@@ -485,7 +530,7 @@ const ACT={
  fit(){cam=null;camInit()},
  live(){liveUI(true)}
 };
-const NEED={add:1,edit:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2,tickets:2,tkopen:2,tkok:2,tkno:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
+const NEED={add:1,edit:1,editat:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2,tickets:2,tkopen:2,tkok:2,tkno:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');
  if(!a||a.dataset.act!=='menu'){const m=$('#mnu');if(m)m.classList.remove('open')} // menu ⋯ : se referme au prochain clic
  if(!a||!ACT[a.dataset.act])return;if(NEED[a.dataset.act]>rank())return toast('Droits insuffisants pour cette action');ACT[a.dataset.act](a.dataset)});

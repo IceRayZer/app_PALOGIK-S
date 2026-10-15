@@ -405,11 +405,12 @@ function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines<
 let bnHide=false;
 function render(){
  const nT=T&&T.tickets?T.tickets.length:0;
- $('#hd').innerHTML=`<b class=logo data-act=home title="Mes arbres">🌳<span class=lb> Racines</span></b>`+(T?`<span class=tname>${esc(T.name)}</span>${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️<span class=lb> Annuler</span></button>`:''}${rank()>=1?'<button class=pri data-act=add title="Ajouter une personne">＋<span class=lb> Personne</span></button>':''}${nT&&rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets title="Nouvelles entrées à valider">🎫<span class=badge>${nT}</span></button>`:''}<button data-act=live title="Session live">${live.peer?'🔴':'📡'}<span class=lb> Live</span>${live.peer?' '+Object.keys(live.peers).length:''}</button><span class=mw><button data-act=menu title="Menu">⋯</button><div id=mnu><button data-act=export>💾 Exporter la sauvegarde</button>${rank()>=2?'<button data-act=settings>⚙️ Infos de l’arbre</button>':''}<button data-act=home>🗂️ Mes arbres</button><small class=mut>Ton rôle : ${ROLE_LABEL[myRole()]}</small></div></span>`:`<span class=sp></span><button data-act=live>📡<span class=lb> Session live</span></button>`);
+ $('#hd').innerHTML=`<b class=logo data-act=home title="Mes arbres">🌳<span class=lb> Racines</span></b>`+(T?`<span class=tname>${esc(T.name)}</span>${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️<span class=lb> Annuler</span></button>`:''}${rank()>=1?'<button class=pri data-act=add title="Ajouter une personne">＋<span class=lb> Personne</span></button>':''}${nT&&rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets title="Nouvelles entrées à valider">🎫<span class=badge>${nT}</span></button>`:''}<button data-act=live title="Session live">${live.peer?'🔴':'📡'}<span class=lb> Live</span>${live.peer?' '+Object.keys(live.peers).length:''}</button><span class=mw><button data-act=menu title="Menu">⋯</button><div id=mnu>${rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets>🎫 Nouvelles entrées (${nT})</button>`:''}<button data-act=export>💾 Exporter la sauvegarde</button>${rank()>=2?'<button data-act=settings>⚙️ Infos de l’arbre</button>':''}<button data-act=home>🗂️ Mes arbres</button><small class=mut>Ton rôle : ${ROLE_LABEL[myRole()]}</small></div></span>`:`<span class=sp></span><button data-act=live>📡<span class=lb> Session live</span></button>`);
  $('#nv').innerHTML=T?VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}"><span class=ic>${l.split(' ')[0]}</span><span class=tl>${l.split(' ').slice(1).join(' ')}</span></button>`).join(''):'';
  const mn=$('#mn'),bn=$('#bn');
  if(!T){popId=null;popup();bn.innerHTML='';mn.innerHTML=homeView();return}
  bn.innerHTML=!bnHide&&P().length&&(!T.lastExport||(T.updated>T.lastExport&&now()-T.lastExport>864e5))?`<div class=banner><span>💾 Sauvegarde non exportée (${T.lastExport?'dernière : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais'}) — tout est stocké sur cet appareil uniquement.</span><button data-act=export>Exporter</button><button class=x data-act=bnclose>✕</button></div>`:'';
+ {const pn=live.peer&&!live.host?pend().length:0;if(pn)bn.innerHTML=`<div class=banner style="background:#dbeafe;color:#10213f"><span>⏳ ${pn} de tes modification(s) sont en attente de validation par l’hôte. Tu vois ici la version de l’hôte ; tu peux utiliser la session normalement.</span></div>`+bn.innerHTML}
  let body;
  try{body=!P().length?`<div class=empty-st><div><div style="font-size:60px">🌱</div><h2>Plante la première graine</h2><p class=mut>Ajoute la première personne de ton arbre.</p><button class=pri data-act=add>＋ Ajouter une personne</button></div></div>`:{tree:treeView,fan:fanView,time:timeView,gen:genView,stats:statsView}[view]()}
  catch(e){console.error(e);body=`<p>Erreur d’affichage : ${esc(e.message)}</p>`}
@@ -420,6 +421,7 @@ function render(){
 
 /* ---------- salle des tickets : ajouts proposés par un invité à son arrivée ---------- */
 let tkOv=null,tkOpen=null;
+const tell=(t,ok)=>{const k=Object.keys(live.dids).find(k=>live.dids[k]===t.did),c=t.did&&k&&live.conns.find(x=>x.peer===k);if(c&&c.open)c.send({t:'tkres',pid:t.pid,ok})}; // prévient l'invité de la décision
 const FL={first:'Prénom(s)',last:'Nom',maiden:'Nom de jeune fille',gender:'Genre',birth:'Naissance',birthPlace:'Lieu de naissance',alive:'Statut',death:'Décès',deathPlace:'Lieu de décès',job:'Métier',story:'Anecdote',photo:'Photo',voice:'Vocal',parents:'Parents',partner:'Conjoint·e'};
 const GL={F:'Femme',M:'Homme',X:'Autre'};
 const rawF=(p,k)=>!p?'':k==='parents'?p.parents.join():k==='alive'?(p.alive===false?'d':'v'):(p[k]||'');
@@ -438,7 +440,7 @@ function ticketsUI(open){
  const L=T.tickets||[],st=tkOv.firstElementChild?tkOv.firstElementChild.scrollTop:0;
  tkOv.innerHTML=`<div class=wz style="width:min(720px,100%)"><div class=wt><span>🎫 Nouvelles entrées (${L.length})</span><button class=x data-act=tkclose>✕</button></div><p class="hint legend"><span class=d-add>ajouté</span><span class=d-mod>modifié</span><span class=d-del>supprimé</span> · touche un ticket pour voir le détail</p>`+
  (L.length?[...L].sort((x,y)=>y.at-x.at).map(t=>{const cur=get(t.pid)||t.after,rows=tkOpen===t.id?(t.after.del?['<div class="dr d-del">Cette personne est supprimée de l’arbre</div>']:diffRows(t)):null;
-  return`<div class=tk><div class=tk-main data-act=tkopen data-id="${t.id}"><div class=tk-meta>👤 ${esc(t.who)} · ${new Date(t.at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'medium'})}</div><div class=tk-person>${av(cur)}<div><b>${esc(nm(cur))}</b><small>${get(t.pid)?'Fiche existante':'Nouvelle fiche'}</small></div></div>${rows?rows.join('')||'<div class=dr>Aucune différence avec l’arbre actuel</div>':''}</div><div class=tk-btns><button class=ok data-act=tkok data-id="${t.id}" title="Valider">✅</button><button class=no data-act=tkno data-id="${t.id}" title="Refuser">❌</button></div></div>`}).join(''):'<p class=hint>Aucune nouvelle entrée 🎉</p>')+'</div>';
+  return`<div class=tk><div class=tk-main data-act=tkopen data-id="${t.id}"><div class=tk-meta>👤 ${esc(t.who)} · ${new Date(t.at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'medium'})}</div><div class=tk-person>${av(cur)}<div><b>${esc(nm(cur))}</b><small>${get(t.pid)?'Fiche existante':'Nouvelle fiche'}${get(t.pid)&&get(t.pid).u>t.at?' · ⚠️ modifiée depuis':''}</small></div></div>${rows?rows.join('')||'<div class=dr>Aucune différence avec l’arbre actuel</div>':''}</div><div class=tk-btns><button class=ok data-act=tkok data-id="${t.id}" title="Valider">✅</button><button class=no data-act=tkno data-id="${t.id}" title="Refuser">❌</button></div></div>`}).join(''):'<p class=hint>Aucune nouvelle entrée 🎉</p>')+'</div>';
  tkOv.firstElementChild.scrollTop=st;
  $$('audio[data-tk]',tkOv).forEach(a=>{const [id,w]=a.dataset.tk.split(':'),t=L.find(x=>x.id===id);a.src=blobUrl(w==='new'?t.after.voice:(get(t.pid)||{}).voice)})}
 
@@ -471,12 +473,12 @@ const ACT={
  tickets(){tkOpen=null;ticketsUI(true)},
  tkclose(){if(tkOv){tkOv.remove();tkOv=null}},
  tkopen({id}){tkOpen=tkOpen===id?null:id;ticketsUI()},
- tkok({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;
+ tkok({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;const cu=get(t.pid);if(cu&&cu.u>t.at&&!confirm('⚠️ Cette fiche a été modifiée depuis l’arrivée de '+t.who+' : valider écrasera ces changements récents. Continuer ?'))return;
   if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.`))return;
-  T.tickets=T.tickets.filter(x=>x.id!==id);
+  T.tickets=T.tickets.filter(x=>x.id!==id);tell(t,true);
   recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
  tkno({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t||!confirm(`Refuser les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nCe ticket sera supprimé, l’arbre actuel reste inchangé.`))return;
-  T.tickets=T.tickets.filter(x=>x.id!==id);saveTree(T);render();ticketsUI();toast('❌ Ticket refusé')},
+  T.tickets=T.tickets.filter(x=>x.id!==id);saveTree(T);tell(t,false);render();ticketsUI();toast('❌ Ticket refusé')},
  async playalt({id}){const p=get(id);if(!p||!p.voice)return; // lecture par Web Audio (autre chemin de sortie, volume x2)
   try{const ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();const buf=await ac.decodeAudioData(await(await fetch(blobUrl(p.voice))).arrayBuffer()),s=ac.createBufferSource(),g=ac.createGain();g.gain.value=2;s.buffer=buf;s.connect(g);g.connect(ac.destination);s.start();s.onended=()=>ac.close()}catch{toast('Lecture impossible sur cet appareil')}},
  zoom({v}){const r=$('#vw').getBoundingClientRect();zoomAt(r.width/2,r.height/2,+v>0?1.25:.8)},
@@ -499,6 +501,8 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
 /* ---------- live : WebRTC pair-à-pair via PeerJS (les données ne passent par aucun serveur) ---------- */
 const COLORS=['#e4572e','#17bebb','#d9a600','#76b041','#a05195','#ff7f50'];
 const ME={name:LS('racines.me')||'',color:COLORS[Math.random()*6|0]};
+const PV=2; // version du protocole live : un hôte et un invité de versions différentes ne se mélangent pas
+const pend=()=>{try{return JSON.parse(LS('racines.pend.'+(T?T.id:''))||'[]')}catch{return[]}},setPend=a=>T&&LS('racines.pend.'+T.id,JSON.stringify([...new Set(a)])); // fiches envoyées par cet invité, en attente de validation
 const live={peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false};
 const DID=LS('racines.id')||(()=>{const v=rid()+rid();LS('racines.id',v);return v})(); // identité de cet appareil
 const reg=()=>{try{return JSON.parse(LS('racines.reg.'+T.id)||'{}')}catch{return{}}}, saveReg=R=>LS('racines.reg.'+T.id,JSON.stringify(R)); // appareils connus de l'hôte : {id:{name,role}}
@@ -528,7 +532,7 @@ async function hostStart(custom,tries=0){await loadPeer();const code=custom||Mat
  peer.on('connection',c=>{c.on('data',m=>onMsg(m,c));c.on('close',()=>{live.conns=live.conns.filter(x=>x!==c);if(live.peers[c.peer]){toast(`👋 ${live.peers[c.peer].name} est parti·e`);delete live.peers[c.peer];delete live.dids[c.peer];bcastPeers();liveUI();render()}})})}
 async function joinStart(code,name,quiet){await loadPeer();ME.name=name;LS('racines.me',name);LS('racines.sess',code);const peer=new Peer();Object.assign(live,{peer,host:false,code,sent:0,peers:{},quiet:!!quiet});
  peer.on('open',()=>{const c=peer.connect('racines-'+code,{reliable:true});live.conns=[c];
-  c.on('open',()=>{c.send({t:'hi',me:{name:ME.name,color:ME.color,sel,id:DID}});if(!live.quiet)toast('⏳ En attente de l’acceptation de l’hôte…')});
+  c.on('open',()=>{c.send({t:'hi',pv:PV,me:{name:ME.name,color:ME.color,sel,id:DID}});if(!live.quiet)toast('⏳ En attente de l’acceptation de l’hôte…')});
   c.on('data',m=>onMsg(m,c));c.on('close',()=>{if(live.peer){toast('Session terminée — ta copie reste sur cet appareil');leave()}})});
  peer.on('error',e=>{if(!live.quiet)toast(e.type==='peer-unavailable'?'Code introuvable : l’hôte est-il connecté ?':'Connexion impossible ('+e.type+')');leave()})}
 function leave(){if(live.peer)live.peer.destroy();LS('racines.sess','');Object.assign(live,{peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false});liveUI();render()}
@@ -536,16 +540,21 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
  if(live.host&&m.t!=='hi'&&!live.conns.includes(c))return;
  switch(m.t){
  case'hi':{if(!live.host||live.conns.includes(c)||!m.me)return;const me={name:String(m.me.name||'Invité').slice(0,30),color:safeC(m.me.color)};
+  if((m.pv||1)<PV){c.send({t:'old'});setTimeout(()=>c.close(),400);toast(`${me.name} utilise une ancienne version de l’appli : il doit recharger sa page (Ctrl+F5)`);return}
   const did=String(m.me.id||'').slice(0,40),R=reg(),known=did&&R[did]; // appareil déjà venu : accepté d'office avec son rôle
   if(!known&&!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} » (en tant qu’Invité : lecture seule, tu pourras changer son rôle ensuite). Accepter ?`)){c.close();return}
   if(did)for(const [k,d] of Object.entries(live.dids))if(d===did){const old=live.conns.find(x=>x.peer===k);live.conns=live.conns.filter(x=>x!==old);delete live.peers[k];delete live.dids[k];if(old)old.close()} // même appareil qui revient : on remplace l'ancienne connexion
   live.conns.push(c);live.peers[c.peer]={...me,role:known&&known.role in RK?known.role:'guest'};
-  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',tree:wire(T)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
- case'tree':{if(live.host)return; // l'hôte ne reçoit jamais d'arbre complet : les ajouts d'un invité arrivent sous forme de tickets
+  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',pv:PV,tree:wire(T)});c.send({t:'pend',pids:(T.tickets||[]).filter(x=>did&&x.did===did).map(x=>x.pid)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
+ case'old':{if(!live.host){toast('Ta version de l’appli est trop ancienne : recharge la page (Ctrl+F5) puis rejoins à nouveau');leave()}break}
+ case'pend':{if(!live.host&&T)setPend([...(m.pids||[]).filter(x=>typeof x==='string'),...(live.sentPids||[])]);render();break}
+ case'tkres':{if(live.host||!T)return;setPend(pend().filter(x=>x!==m.pid));live.sentPids=(live.sentPids||[]).filter(x=>x!==m.pid);const q=get(m.pid);toast(m.ok?`✅ Ta modification de « ${q?nm(q):'une fiche'} » a été validée`:`❌ Ta modification de « ${q?nm(q):'une fiche'} » a été refusée`);render();break}
+ case'tree':{if(live.host)return;if((m.pv||1)<PV){toast('L’hôte utilise une ancienne version : il doit recharger sa page (Ctrl+F5) pour que les tickets fonctionnent');leave();return} // l'hôte ne reçoit jamais d'arbre complet : les ajouts d'un invité arrivent sous forme de tickets
   const r=norm(m.tree),l=T&&T.id===r.id?T:(await allTrees()).find(x=>x.id===r.id),items=l?proposals(l,r):[];
   if(items.length)await saveTree({...l,id:l.id+'-av-'+now().toString(36),name:l.name+' (avant fusion)',su:undefined,tickets:[]}); // copie de sécurité de la version locale
   r.su=Object.fromEntries(Object.entries(r.persons).map(([k,p])=>[k,p.u]));if(l&&l.lastExport)r.lastExport=l.lastExport;
   T=r;hist=[];view='tree';cam=null;sel=null;await saveTree(T);
+  live.sentPids=items.map(i=>i.after.id);if(items.length)setPend([...pend(),...live.sentPids]);
   items.forEach(it=>c.send({t:'prop',item:it}));
   if(items.length)toast(`🎫 ${items.length} de tes modification(s) hors-ligne ont été envoyées à l’hôte pour validation. Ta version précédente est gardée dans « Mes arbres ».`);
   render();break}

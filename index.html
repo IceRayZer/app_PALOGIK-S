@@ -95,7 +95,7 @@ const pick=(a,not)=>{let x;do x=a[Math.random()*a.length|0];while(x===not&&a.len
 const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch{}};
 const safeC=c=>/^#[0-9a-f]{6}$/i.test(c)?c:'#888888';
 const slug=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\W+/g,'-').toLowerCase()||'arbre';
-function toast(m){const t=el(`<div class=toast>${esc(m)}</div>`);document.body.append(t);setTimeout(()=>t.remove(),3200)}
+function toast(m,label,fn){const t=el(`<div class=toast>${esc(m)}</div>`);if(fn){const b=el(`<button style="margin-left:10px">${esc(label)}</button>`);b.onclick=()=>{fn();t.remove()};t.append(b)}document.body.append(t);setTimeout(()=>t.remove(),fn?7000:3200)}
 function boom(){for(let i=0;i<18;i++){const s=el(`<span class=cf style="left:50%;top:50%;--dx:${(Math.random()-.5)*600}px;--dy:${(Math.random()-.7)*500}px">${pick(['🌿','🍃','✨','🌳','💚','🍂'])}</span>`);document.body.append(s);setTimeout(()=>s.remove(),1300)}}
 
 /* ---------- stockage local (IndexedDB) : rien ne quitte l'appareil ---------- */
@@ -146,6 +146,14 @@ function savePerson(d,id){const p=id?T.persons[id]:{id:rid(),partner:'',parents:
   alive:d.alive!==false,death:d.alive===false?parseDate(d.death):'',deathPlace:d.alive===false?d.deathPlace.trim():'',photo:d.photo,voice:d.voice,job:d.job.trim(),story:d.story.trim(),storyQ:d.storyQ,parents:par});
  T.persons[p.id]=p;setPartner(p,d.partner);commit(p);return p}
 
+/* ---------- annulation : instantanés légers (les chaînes photo/vocal sont partagées, pas copiées) ---------- */
+let hist=[];
+const snapshot=()=>Object.fromEntries(Object.entries(T.persons).map(([k,p])=>[k,{...p,parents:[...p.parents]}]));
+function recorded(label,fn){const snap=snapshot();fn();const ids=Object.keys(T.persons).filter(id=>!snap[id]||snap[id].u!==T.persons[id].u);if(ids.length){hist.push({label,snap,ids});if(hist.length>30)hist.shift()}render()}
+function undo(){const h=hist.pop();if(!h||rank()<1)return;let t=now();
+ for(const id of h.ids){const o=h.snap[id],c=T.persons[id],p=o?{...o,u:++t}:{...c,del:true,photo:'',voice:'',partner:'',u:++t};T.persons[id]=p;send({t:'p',p,by:ME.name})} // seules les fiches touchées par l'action sont restaurées
+ T.updated=t;saveTree(T);render();toast('↩️ Annulé : '+h.label)}
+
 /* ---------- assistant pas-à-pas (arbre & personnes) ---------- */
 const fn=d=>(d.first||'').trim().split(/\s+/)[0]||'Cette personne';
 const ne=d=>d.gender==='F'?'née':d.gender==='M'?'né':'né(e)';
@@ -155,19 +163,33 @@ const resize=f=>new Promise(ok=>{const i=new Image();i.onload=()=>{const s=Math.
 let rec=null; // enregistreur vocal en cours
 async function recToggle(d,draw){
  if(rec){rec.stop();return}
- try{const st=await navigator.mediaDevices.getUserMedia({audio:true}),mr=new MediaRecorder(st,{audioBitsPerSecond:24000}),ch=[];
+ try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  const mt=window.MediaRecorder&&['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t)),
+   mr=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:32000}:undefined),ch=[];
+  // jauge de niveau : montre que le micro capte bien, et détecte un enregistrement muet
+  const ac=new(window.AudioContext||window.webkitAudioContext)(),an=ac.createAnalyser(),buf=new Uint8Array(an.fftSize);let peak=0;
+  ac.createMediaStreamSource(st).connect(an);
+  const iv=setInterval(()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128)/128);peak=Math.max(peak,m);const l=$('#lvl');if(l)l.value=Math.min(1,m*3)},100);
   const tm=setTimeout(()=>mr.state==='recording'&&mr.stop(),60000);rec=mr;
-  mr.ondataavailable=e=>ch.push(e.data);
-  mr.onstop=()=>{clearTimeout(tm);st.getTracks().forEach(t=>t.stop());rec=null;const r=new FileReader();r.onload=()=>{d.voice=safeAudio(r.result);draw()};r.readAsDataURL(new Blob(ch,{type:mr.mimeType||'audio/webm'}))};
+  mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  mr.onstop=()=>{clearTimeout(tm);clearInterval(iv);ac.close();st.getTracks().forEach(t=>t.stop());rec=null;
+   if(peak<.02)toast('⚠️ Aucun son capté : vérifie que le micro n’est pas coupé, puis réessaie');
+   const r=new FileReader();r.onload=()=>{d.voice=safeAudio(r.result)||d.voice;draw()};r.readAsDataURL(new Blob(ch,{type:mr.mimeType||mt||'audio/webm'}))};
   mr.start();draw()}catch{toast('Micro inaccessible : autorise-le dans le navigateur')}}
+// lecture via une URL blob (plus fiable que data: sur mobile)
+const BU=new Map();
+function blobUrl(u){if(!u)return'';let b=BU.get(u);if(!b){const i=u.indexOf(','),bin=atob(u.slice(i+1)),a=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)a[k]=bin.charCodeAt(k);
+ if(BU.size>20){BU.forEach(v=>URL.revokeObjectURL(v));BU.clear()}b=URL.createObjectURL(new Blob([a],{type:u.slice(5,i).replace(/;base64$/,'')}));BU.set(u,b)}return b}
 const av=(p,c='')=>`<span class="av ${c}" style="${p.photo?`background-image:url(${p.photo})`:''}">${p.photo?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}</span>`;
 
 function wizard({steps,d,title,edit,done}){
- let i=0;const ov=el('<div class=ov></div>');document.body.append(ov);
+ let i=0;const ov=el('<div class=ov></div>'),v0=d.voice;document.body.append(ov);
+ const closeW=()=>{if(d.voice&&d.voice!==v0&&!confirm('Le vocal que tu viens d’enregistrer n’est pas sauvegardé et sera perdu. Fermer quand même ?'))return;if(rec)rec.stop();ov.remove()};ov._close=closeW;
  const act=()=>steps.filter(s=>!s.when||s.when(d));
  const rx=()=>{const s=act()[i],r=$('#rx',ov);if(r)r.textContent=s.react?s.react(d):''};
  const draw=()=>{const A=act();i=Math.max(0,Math.min(i,A.length-1));const s=A[i];
   ov.innerHTML=`<div class=wz><div class=wt><span>${title}</span><button class=x data-w=close>✕</button></div><div class=dots>${A.map((_,j)=>`<i class="${j==i?'on':j<i?'done':''}" data-go=${j}></i>`).join('')}</div><div class=big>${s.icon}</div><h2>${esc(s.q(d))}</h2><p class=hint>${s.hint||''}</p><div class=body>${s.body(d)}</div><p class=react id=rx>${esc(s.react?s.react(d):'')}</p><div class=nav><button data-w=back ${i?'':'disabled'}>←</button>${i>0||edit?'<button class=lnk data-w=fin>Enregistrer et fermer</button>':''}<button class=pri data-w=next>${i==A.length-1?'Terminer ✨':'Suivant →'}</button></div></div>`;
+  $$('audio[data-d]',ov).forEach(a=>a.src=blobUrl(d.voice));
   const f=$('input:not([type=file]),textarea',ov);f&&f.focus()};
  const fin=()=>{if(rec){toast('Arrête d’abord l’enregistrement');return}for(const [j,s] of act().entries()){const e=s.check&&s.check(d);if(e){i=j;draw();toast(e);return}}ov.remove();done(d)};
  const next=()=>{const A=act(),e=A[i].check&&A[i].check(d);if(e){toast(e);const w=$('.wz',ov);w.classList.add('shake');setTimeout(()=>w.classList.remove('shake'),400);return}i<A.length-1?(i++,draw()):fin()};
@@ -175,9 +197,11 @@ function wizard({steps,d,title,edit,done}){
   if(t.classList.contains('flt')){const v=t.value.toLowerCase();$$('[data-n]',ov).forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
  ov.addEventListener('change',async e=>{if(e.target.type==='file'&&e.target.files[0]){d.photo=await resize(e.target.files[0]);draw()}});
  ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'){e.preventDefault();next()}});
- ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug],[data-rec],[data-rmv]');if(!t)return;const D=t.dataset;
-  if(D.w==='close'){if(rec)rec.stop();ov.remove()}
-  else if(D.rec!==undefined)recToggle(d,draw);else if(D.rmv!==undefined){d.voice='';draw()}else if(D.w==='back'){i--;draw()}else if(D.w==='next')next();else if(D.w==='fin')fin();
+ ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug],[data-rec],[data-rmv],[data-restore]');if(!t)return;const D=t.dataset;
+  if(D.w==='close')closeW();
+  else if(D.rec!==undefined){if(!rec&&d.voice){if(d.voice===v0&&!confirm('Un vocal est déjà enregistré. Le réenregistrer le REMPLACERA (tu pourras le retrouver ici tant que tu ne fermes pas cette fenêtre). Continuer ?'))return;d.voicePrev=d.voice}recToggle(d,draw)}
+  else if(D.rmv!==undefined){if(confirm('Supprimer ce vocal ?')){d.voicePrev=d.voice;d.voice='';draw()}}
+  else if(D.restore!==undefined){d.voice=d.voicePrev;draw()}else if(D.w==='back'){i--;draw()}else if(D.w==='next')next();else if(D.w==='fin')fin();
   else if(D.go){i=+D.go;draw()}
   else if(D.k){d[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;const s=act()[i];if(s.auto&&s.auto(d)){draw();setTimeout(next,250)}else draw()}
   else if(D.pick==='parents'){const a=d.parents,j=a.indexOf(D.id);if(j>=0)a.splice(j,1);else if(a.length<2)a.push(D.id);else toast('Deux parents maximum');t.classList.toggle('on',a.includes(D.id));rx()}
@@ -214,14 +238,14 @@ const personSteps=id=>[
  {icon:'📖',q:d=>`Une anecdote sur ${fn(d)} ?`,hint:'Optionnel — c’est ce qui donne vie à un arbre. Une phrase suffit !',
   body:d=>`<input name=job placeholder="Métier / passion" value="${esc(d.job)}"><p><b>${esc(d.storyQ)}</b> <button data-dice title="Une autre question">🎲</button></p><textarea name=story rows=4 placeholder="Écris librement…">${esc(d.story)}</textarea>`},
  {icon:'🎙️',q:d=>`Un message vocal pour ${fn(d)} ?`,hint:'Optionnel : sa voix, ou toi qui racontes un souvenir (60 s max). Réécoutable par tous depuis la fiche.',
-  body:d=>`<div style="text-align:center">${rec?'<button class=opt data-rec>⏹ Arrêter</button><p>🔴 Enregistrement en cours…</p>':`<button class=opt data-rec>🎙️ ${d.voice?'Réenregistrer':'Enregistrer'}</button>`}${d.voice&&!rec?`<p><audio controls src="${d.voice}" style="width:100%"></audio></p><button data-rmv>Supprimer le vocal</button>`:''}</div>`,
+  body:d=>`<div style="text-align:center">${rec?'<button class=opt data-rec>⏹ Arrêter</button><p>🔴 Enregistrement en cours… parle, la jauge doit bouger</p><progress id=lvl max=1 value=0 style="width:100%"></progress>':`<button class=opt data-rec>🎙️ ${d.voice?'Réenregistrer':'Enregistrer'}</button>`}${d.voice&&!rec?`<p><audio controls data-d style="width:100%"></audio></p><button data-rmv>Supprimer le vocal</button>`:''}${d.voicePrev&&d.voicePrev!==d.voice&&!rec?'<p><button data-restore>↩️ Retrouver l’ancien vocal</button></p>':''}</div>`,
   react:d=>d.voice?'Sa voix traversera les générations 🎶':''}
 ];
 const blank=()=>({first:'',last:'',maiden:'',gender:'',birth:'',birthPlace:'',alive:true,death:'',deathPlace:'',photo:'',voice:'',job:'',story:'',storyQ:'',parents:[],partner:''});
 function openPerson(id,pre={},after){
  const p=id&&T.persons[id];
  const d=p?{...blank(),...p,birth:dispIn(p.birth),death:dispIn(p.death),parents:[...p.parents],storyQ:p.storyQ||pick(Q)}:{...blank(),last:T.family||'',storyQ:pick(Q),...pre};
- wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,steps:personSteps(id),d,done:d=>{const np=savePerson(d,id);after&&after(np);sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
+ wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,steps:personSteps(id),d,done:d=>{let np;recorded(p?`modification de ${nm(p)}`:'ajout d’une personne',()=>{np=savePerson(d,id);after&&after(np)});sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
 
 const treeSteps=[
  {icon:'🌳',q:()=>'Comment veux-tu appeler cet arbre ?',hint:'« Les Martin de Bretagne », « Mes racines »…',body:d=>`<input name=name value="${esc(d.name)}" placeholder="Arbre de la famille…">`,react:d=>d.name?`« ${d.name} » — joli nom, on plante ça ! 🌱`:'',check:d=>!d.name.trim()&&'Donne un nom à ton arbre'},
@@ -321,7 +345,7 @@ function popHtml(p){
  return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop>✕</button></div><div class=ph>${p.photo?`<img class=bigph src="${p.photo}" alt="">`:av(p,'lg')}<h2>${esc(nm(p))}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
  ${p.birth||p.birthPlace?`<div>🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
  ${p.alive===false?`<div>🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
- ${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.voice?`<h4>🎙️ Message vocal</h4><audio controls preload=none src="${p.voice}"></audio>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}
+ ${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.voice?`<h4>🎙️ Message vocal</h4><audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}
  ${rel('Parents',p.parents.map(get).filter(Boolean))}${rel('En couple avec',[get(p.partner)].filter(Boolean))}${rel('Enfants',kids(p))}${rel('Fratrie',sibs(p))}
  ${rank()>=1?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}">🗑️</button></div>`:''}</div>`}
 let popId=null;
@@ -329,7 +353,7 @@ function popup(){let ov=$('#pop');const p=get(popId);if(!p){if(ov)ov.remove();re
  const h=popHtml(p);if(ov&&ov._h===h)return; // inchangée : on ne touche pas (préserve la lecture audio)
  const st=ov?ov.firstElementChild.scrollTop:0;
  if(!ov){ov=el('<div class=ov id=pop></div>');ov.onclick=e=>{if(e.target===ov){popId=null;popup()}};document.body.append(ov)}
- ov._h=h;ov.innerHTML=h;ov.firstElementChild.scrollTop=st}
+ ov._h=h;ov.innerHTML=h;ov.firstElementChild.scrollTop=st;const a=$('audio[data-vp]',ov);if(a)a.src=blobUrl(p.voice)}
 
 const VIEWS=[['tree','🌳 Arbre'],['fan','🌅 Éventail'],['time','⏳ Chronologie'],['gen','🗂️ Générations'],['stats','📊 Aperçu']];
 function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines</h1><p class=mut>Ton arbre généalogique, <b>100 % sur ton appareil</b>. Exporte-le en un clic, réimporte-le où tu veux. Aucun compte, aucun serveur de stockage.</p>
@@ -337,7 +361,7 @@ function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines<
  ${HOME.length?HOME.map(t=>`<div class=tcard><div><b>${esc(t.name)}</b><br><small>${Object.values(t.persons).filter(p=>!p.del).length} personne(s) · modifié le ${new Date(t.updated).toLocaleDateString('fr-FR')}</small></div><button class=pri data-act=open data-id="${t.id}">Ouvrir</button><button data-act=delTree data-id="${t.id}" title="Supprimer">🗑️</button></div>`).join(''):'<p class=mut>Aucun arbre pour l’instant.</p>'}</div></div>`}
 
 function render(){
- $('#hd').innerHTML=`<b class=logo data-act=home>🌳 Racines</b>`+(T?`<span class=tname>${esc(T.name)}</span><nav class=tabs>${VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}">${l}</button>`).join('')}</nav><span class=sp></span>${rank()>=1?'<button class=pri data-act=add>＋ Personne</button>':''}<button data-act=live>${live.peer?`🔴 Live · ${Object.keys(live.peers).length}`:'📡 Live'}</button><button data-act=export>💾 Exporter</button>${rank()>=2?'<button data-act=settings title="Infos de l’arbre">⚙️</button>':`<span class=mut title="Ton rôle dans la session">${ROLE_LABEL[myRole()]}</span>`}`:`<span class=sp></span><button data-act=live>📡 Session live</button>`);
+ $('#hd').innerHTML=`<b class=logo data-act=home>🌳 Racines</b>`+(T?`<span class=tname>${esc(T.name)}</span><nav class=tabs>${VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}">${l}</button>`).join('')}</nav><span class=sp></span>${rank()>=1?'<button class=pri data-act=add>＋ Personne</button>':''}${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️ Annuler</button>`:''}<button data-act=live>${live.peer?`🔴 Live · ${Object.keys(live.peers).length}`:'📡 Live'}</button><button data-act=export>💾 Exporter</button>${rank()>=2?'<button data-act=settings title="Infos de l’arbre">⚙️</button>':`<span class=mut title="Ton rôle dans la session">${ROLE_LABEL[myRole()]}</span>`}`:`<span class=sp></span><button data-act=live>📡 Session live</button>`);
  const mn=$('#mn'),bn=$('#bn');
  if(!T){popId=null;popup();bn.innerHTML='';mn.innerHTML=homeView();return}
  bn.innerHTML=P().length&&(!T.lastExport||(T.updated>T.lastExport&&now()-T.lastExport>864e5))?`<div class=banner>💾 Pense à exporter ta sauvegarde (${T.lastExport?'dernier export : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais exportée'}). Tout est stocké uniquement sur cet appareil. <button data-act=export>Exporter maintenant</button></div>`:'';
@@ -350,10 +374,10 @@ function render(){
  popup()}
 
 /* ---------- actions ---------- */
-async function goHome(){HOME=await allTrees();T=null;sel=null;render()}
+async function goHome(){HOME=await allTrees();T=null;hist=[];sel=null;render()}
 const ACT={
  home:goHome,
- open({id}){T=norm(HOME.find(t=>t.id===id));sel=null;cam=null;view='tree';render()},
+ open({id}){T=norm(HOME.find(t=>t.id===id));hist=[];sel=null;cam=null;view='tree';render()},
  async delTree({id}){const t=HOME.find(t=>t.id===id);if(confirm(`Supprimer définitivement « ${t.name} » de cet appareil ?\n(Pense à l’exporter avant si besoin.)`)){await dropTree(id);goHome()}},
  newTree(){treeWizard({name:'',family:'',origin:'',author:ME.name,about:''})},
  settings(){treeWizard({name:T.name,family:T.family,origin:T.origin,author:T.author,about:T.about},true)},
@@ -368,15 +392,23 @@ const ACT={
  addChild({id}){const p=get(id),q=get(p.partner);openPerson(null,{parents:[p.id,q&&q.id].filter(Boolean),last:p.gender==='F'&&q?q.last:p.last})},
  addPartner({id}){openPerson(null,{partner:id})},
  addParent({id}){openPerson(null,{},np=>{const c=T.persons[id];c.parents=[...c.parents,np.id].slice(0,2);commit(c)})},
- del({id}){const p=get(id);if(!p||!confirm(`Supprimer ${nm(p)} de l’arbre ?`))return;const q=get(p.partner);if(q){q.partner='';commit(q)}Object.assign(p,{del:true,photo:'',voice:'',partner:''});sel=null;commit(p)},
+ del({id}){const p=get(id);if(!p||!confirm(`Supprimer ${nm(p)} de l’arbre ?${p.photo?'\n\nSa photo sera supprimée aussi.':''}${p.voice?'\n\n⚠️ Son message vocal (unique) sera supprimé aussi.':''}\n\nTu pourras annuler tant que tu ne fermes pas la page.`))return;
+  if(p.voice&&!confirm(`Dernière confirmation : le vocal de ${nm(p)} sera perdu pour de bon si tu fermes la page. Supprimer quand même ?`))return;
+  recorded(`suppression de ${nm(p)}`,()=>{const q=get(p.partner);if(q){q.partner='';commit(q)}Object.assign(p,{del:true,photo:'',voice:'',partner:''});commit(p)});
+  sel=popId=null;render();toast('🗑️ Supprimé','Annuler',undo)},
+ undo(){undo()},
+ async playalt({id}){const p=get(id);if(!p||!p.voice)return; // lecture par Web Audio (autre chemin de sortie, volume x2)
+  try{const ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();const buf=await ac.decodeAudioData(await(await fetch(blobUrl(p.voice))).arrayBuffer()),s=ac.createBufferSource(),g=ac.createGain();g.gain.value=2;s.buffer=buf;s.connect(g);g.connect(ac.destination);s.start();s.onended=()=>ac.close()}catch{toast('Lecture impossible sur cet appareil')}},
  zoom({v}){const r=$('#vw').getBoundingClientRect();zoomAt(r.width/2,r.height/2,+v>0?1.25:.8)},
  fit(){cam=null;camInit()},
  live(){liveUI(true)}
 };
-const NEED={add:1,edit:1,addChild:1,addPartner:1,addParent:1,del:1,settings:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
+const NEED={add:1,edit:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a||!ACT[a.dataset.act])return;if(NEED[a.dataset.act]>rank())return toast('Droits insuffisants pour cette action');ACT[a.dataset.act](a.dataset)});
 document.addEventListener('input',e=>{if(e.target.id==='flt'){const v=e.target.value.toLowerCase();$$('.grid .card').forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=$$('.ov').pop();if(o){o.remove();if(o===liveOv)liveOv=null;if(o.id==='pop')popId=null;if(rec)rec.stop()}}});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){const o=$$('.ov').pop();if(o){if(o._close)return o._close();o.remove();if(o===liveOv)liveOv=null;if(o.id==='pop')popId=null}}
+ else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&T&&hist.length&&!$('.ov:not(#pop)')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo()}});
 $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  try{const o=JSON.parse(await f.text());if(o.app!=='racines'||!o.tree||!o.tree.id)throw 0;const r=norm(o.tree);HOME=await allTrees();const l=HOME.find(t=>t.id===r.id);
   if(l){mergeTree(l,r);await saveTree(l);toast('Arbre fusionné avec la version existante')}else{await saveTree(r);toast('Arbre importé ✔')}
@@ -403,10 +435,14 @@ const send=(m,except)=>{for(const c of live.conns)if(c!==except&&c.open)c.send(m
 const bcastPeers=()=>send({t:'peers',peers:live.peers});
 function presence(){if(!live.peer)return;if(live.host){live.peers.host.sel=sel;bcastPeers()}else send({t:'sel',id:sel})}
 const loadPeer=()=>window.Peer?Promise.resolve():new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';s.onload=ok;s.onerror=()=>ko(new Error('PeerJS indisponible (hors-ligne ?)'));document.head.append(s)});
-async function hostStart(){await loadPeer();const code=Math.random().toString(36).slice(2,8).toUpperCase(),peer=new Peer('racines-'+code);
+async function hostStart(custom,tries=0){await loadPeer();const code=custom||Math.random().toString(36).slice(2,8).toUpperCase(),peer=new Peer('racines-'+code);
  Object.assign(live,{peer,host:true,code,peers:{host:{name:ME.name,color:ME.color,sel,role:'creator'}}});
- peer.on('open',()=>{liveUI();render()});
- peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();hostStart()}else{toast('Live : '+e.type);leave()}});
+ peer.on('open',()=>{LS('racines.code.'+T.id,code);liveUI();render()}); // le code est mémorisé : même code = même lien à la prochaine session
+ peer.on('error',e=>{if(e.type!=='unavailable-id'){toast('Live : '+e.type);leave();return}
+  peer.destroy();live.peer=null;
+  if(!custom)hostStart();
+  else if(tries<4){toast('Code encore occupé (ancienne session ?), nouvelle tentative…');setTimeout(()=>hostStart(custom,tries+1),3000)}
+  else{toast('Ce code est déjà utilisé par quelqu’un d’autre : choisis-en un autre');leave()}});
  peer.on('connection',c=>{c.on('data',m=>onMsg(m,c));c.on('close',()=>{live.conns=live.conns.filter(x=>x!==c);if(live.peers[c.peer]){toast(`👋 ${live.peers[c.peer].name} est parti·e`);delete live.peers[c.peer];delete live.dids[c.peer];bcastPeers();liveUI();render()}})})}
 async function joinStart(code,name,quiet){await loadPeer();ME.name=name;LS('racines.me',name);LS('racines.sess',code);const peer=new Peer();Object.assign(live,{peer,host:false,code,sent:0,peers:{},quiet:!!quiet});
  peer.on('open',()=>{const c=peer.connect('racines-'+code,{reliable:true});live.conns=[c];
@@ -424,7 +460,7 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
   live.conns.push(c);live.peers[c.peer]={...me,role:known&&known.role in RK?known.role:'guest'};
   if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',tree:T});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
  case'tree':{if(live.host&&rankOf(c)<1)return;const r=norm(m.tree);if(live.host&&rankOf(c)<2)r.mu=0;let n=0;
-  if(!live.host&&(!T||T.id!==r.id)){const l=(await allTrees()).find(t=>t.id===r.id);if(l){mergeTree(l,r);T=l}else T=r;view='tree';cam=null;sel=null;n=1}else if(T&&T.id===r.id)n=mergeTree(T,r);
+  if(!live.host&&(!T||T.id!==r.id)){const l=(await allTrees()).find(t=>t.id===r.id);if(l){mergeTree(l,r);T=l}else T=r;view='tree';cam=null;sel=null;hist=[];n=1}else if(T&&T.id===r.id)n=mergeTree(T,r);
   if(!T)return;await saveTree(T);if(!live.host&&!live.sent){live.sent=1;c.send({t:'tree',tree:T})}if(live.host&&n)send({t:'tree',tree:T},c);render();break}
  case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(m.p),l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host)send(m,c);render();break}
  case'm':{if(!T||!m.m||(live.host&&rankOf(c)<2))return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
@@ -439,7 +475,8 @@ function liveUI(open){
   liveOv.addEventListener('change',e=>{const s=e.target.closest('[data-role]');if(!s)return;if(live.host)setRole(s.dataset.role,s.value);else send({t:'role',to:s.dataset.role,role:s.value})});
   liveOv.addEventListener('click',async e=>{const kb=e.target.closest('[data-kick]');if(kb)return doKick(kb.dataset.kick);const b=e.target.closest('[data-l]');if(!b)return;const l=b.dataset.l,nm=()=>($('#lname',liveOv).value||'').trim()||'Anonyme';
    try{if(l==='close'){liveOv.remove();liveOv=null}
-   else if(l==='host'){ME.name=nm();LS('racines.me',ME.name);await hostStart()}
+   else if(l==='host'){ME.name=nm();LS('racines.me',ME.name);const raw=($('#lhc',liveOv).value||'').trim().toUpperCase();
+    if(raw&&!/^[A-Z0-9-]{6,24}$/.test(raw))return toast('Code : 6 à 24 caractères (lettres, chiffres, tiret)');await hostStart(raw||undefined)}
    else if(l==='join'){const c=($('#lcode',liveOv).value||'').trim().toUpperCase();if(!c)return toast('Entre le code');await joinStart(c,nm());liveUI()}
    else if(l==='copy'){await navigator.clipboard.writeText(location.href.split('#')[0]+'#join='+live.code);toast('🔗 Lien copié')}
    else if(l==='leave')leave()}catch(err){toast(err.message)}})}
@@ -447,7 +484,7 @@ function liveUI(open){
  const on=!!live.peer,pre=typeof open==='string'?open:'';
  liveOv.innerHTML=`<div class=wz><div class=wt><span>📡 Session live</span><button class=x data-l=close>✕</button></div>`+(on?
   `<p>Ton rôle : <b>${ROLE_LABEL[myRole()]}</b></p>${rank()>=2?`<p>Code invité : <b class=code>${esc(live.code)}</b></p><p><button data-l=copy>🔗 Copier le lien d’invitation</button></p>`:''}<h4>Participants</h4>${Object.entries(live.peers).map(([k,v])=>{const r=v.role in RK?v.role:'guest';return`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span class=dot style="background:${safeC(v.color)}"></span><span style="flex:1">${esc(v.name)}${k===myKey()?' (moi)':''}${k==='host'?' · hôte':''}</span>${rank()>=2&&k!=='host'?`<select data-role="${esc(k)}">${Object.entries(ROLE_LABEL).map(([rk,l])=>`<option value=${rk} ${rk===r?'selected':''}>${l}</option>`).join('')}</select>`:`<small>${ROLE_LABEL[r]}</small>`}${rank()>=2&&k!=='host'&&k!==myKey()?`<button class=x data-kick="${esc(k)}" title="Retirer de la session">✕</button>`:''}</div>`}).join('')||'<small>Connexion…</small>'}<p class=hint>Les modifications s’affichent en direct chez tout le monde. Chacun garde sa copie sur son appareil.${live.host?' Si tu quittes, la session s’arrête.':''}</p><button data-l=leave>Quitter la session</button>`
-  :`<p class=hint>Édite l’arbre à plusieurs en direct. Les données circulent <b>d’appareil à appareil</b> (WebRTC) — rien n’est envoyé à GitHub. L’hôte valide chaque invité.</p><label>Ton prénom<input id=lname value="${esc(ME.name)}"></label>${T?`<p><button class=pri data-l=host>Héberger « ${esc(T.name)} »</button></p>`:''}<h4>Rejoindre une session</h4><input id=lcode placeholder="Code (ex. K3F9QZ)" value="${esc(pre)}" style="text-transform:uppercase"><p><button data-l=join>Rejoindre</button></p><p class=hint>En rejoignant, tu reçois une copie de l’arbre, stockée uniquement sur ton appareil.</p>`)+'</div>'}
+  :`<p class=hint>Édite l’arbre à plusieurs en direct. Les données circulent <b>d’appareil à appareil</b> (WebRTC) — rien n’est envoyé à GitHub. L’hôte valide chaque invité.</p><label>Ton prénom<input id=lname value="${esc(ME.name)}"></label>${T?`<label>Code d’invitation <small>(garde le même code = même lien pour tes proches à chaque session)</small><input id=lhc value="${esc(LS('racines.code.'+T.id)||'')}" placeholder="vide = code aléatoire" style="text-transform:uppercase"></label><p class=hint>6 à 24 caractères (lettres, chiffres, tiret). Choisis-en un difficile à deviner. L’hôte valide de toute façon chaque nouvel appareil.</p><p><button class=pri data-l=host>Héberger « ${esc(T.name)} »</button></p>`:''}<h4>Rejoindre une session</h4><input id=lcode placeholder="Code (ex. K3F9QZ)" value="${esc(pre)}" style="text-transform:uppercase"><p><button data-l=join>Rejoindre</button></p><p class=hint>En rejoignant, tu reçois une copie de l’arbre, stockée uniquement sur ton appareil.</p>`)+'</div>'}
 
 /* ---------- démarrage ---------- */
 (async()=>{try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}

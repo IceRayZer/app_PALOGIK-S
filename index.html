@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Racines — arbre généalogique</title>
+<style>
+:root{--bg:#f6f1e7;--card:#fffdf8;--ink:#2b2a26;--mut:#7a7467;--line:#c9bfa8;--acc:#3f7d58;--accink:#fff;--F:#f6d3dc;--M:#cfe0f3;--X:#dcebcf;--sh:0 2px 10px #0002}
+@media(prefers-color-scheme:dark){:root{--bg:#1b1a17;--card:#26241f;--ink:#efe9da;--mut:#a39c8b;--line:#4a463b;--acc:#6fbf8b;--accink:#10210f;--F:#5a3a44;--M:#34495f;--X:#44563a}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+button:hover{filter:brightness(.95)}button:disabled{opacity:.4;cursor:default}
+button.pri{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+button.lnk{border:0;background:none;color:var(--mut);text-decoration:underline}
+input,textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+h1,h2,h3,h4{margin:.6em 0 .3em}
+.mut,small{color:var(--mut)}
+header{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{cursor:pointer;font-size:18px}.tname{color:var(--mut)}.sp{flex:1}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}.tabs button.on{background:var(--ink);color:var(--bg)}
+.banner{background:#ffe9a8;color:#4a3b00;padding:6px 12px;display:flex;gap:10px;align-items:center;font-size:14px}
+main{flex:1;display:flex;min-height:0;position:relative}
+#vw{flex:1;min-width:0}
+#vw.st{position:relative;overflow:hidden;touch-action:none;cursor:grab;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:24px 24px}
+#vw.scroll,.scroll{overflow:auto;padding:16px}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+.lines{position:absolute;left:0;top:0;overflow:visible;stroke:var(--line);fill:none;stroke-width:2}
+.lines text{fill:var(--acc);stroke:none;font-size:14px}
+.zc{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+.card{position:absolute;width:170px;height:70px;display:flex;gap:8px;align-items:center;padding:8px;border-radius:12px;background:var(--card);border:2px solid var(--line);box-shadow:var(--sh);cursor:pointer}
+.card.F{background:var(--F)}.card.M{background:var(--M)}.card.X{background:var(--X)}
+.card.sel{border-color:var(--acc);outline:3px solid var(--acc)}
+.card .ct{min-width:0;display:flex;flex-direction:column}.card b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.tag{position:absolute;top:-17px;left:6px;font:600 11px system-ui;color:#fff;padding:1px 7px;border-radius:6px 6px 0 0;font-style:normal;white-space:nowrap}
+.av{width:44px;height:44px;border-radius:50%;background:#8883 center/cover;display:grid;place-items:center;flex:none;font-weight:700}
+.av.lg{width:90px;height:90px;font-size:32px;margin:auto}
+.grid{display:flex;flex-wrap:wrap;gap:12px}.grid .card{position:static}
+#pn{width:310px;border-left:1px solid var(--line);background:var(--card);overflow:auto;padding:14px;position:relative}
+#pn blockquote{margin:8px 0;padding:8px 10px;border-left:3px solid var(--acc);background:#8881;white-space:pre-wrap}
+#pn .ph{text-align:center}#pn .close{position:absolute;top:8px;right:8px}
+.chip{display:inline-flex;gap:6px;align-items:center;padding:3px 10px;border:1px solid var(--line);border-radius:99px;cursor:pointer;margin:3px;background:var(--card)}
+.chip.on{background:var(--acc);color:var(--accink)}
+.chips{max-height:130px;overflow:auto}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+@media(max-width:760px){#pn{position:absolute;inset:auto 0 0 0;width:auto;max-height:52%;border-top:1px solid var(--line);box-shadow:0 -4px 14px #0003}}
+svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(--card)}
+.sec{stroke:var(--bg);stroke-width:2;cursor:pointer}.sec.empty{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.tx{fill:var(--ink);font-size:12px;pointer-events:none}
+.bar{stroke:var(--line);cursor:pointer}.bar.est{stroke-dasharray:4 3;fill-opacity:.5}.bar.sel{stroke:var(--acc);stroke-width:3}
+.axis{stroke:var(--line);stroke-width:1;opacity:.5}
+.tiles{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:150px;display:flex;flex-direction:column}.tile b{font-size:20px;font-weight:600}
+.home{max-width:720px;margin:auto}.row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.tcard{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0}
+.tcard div{flex:1}
+.empty-st{display:grid;place-items:center;height:100%;text-align:center;padding:20px}
+.ov{position:fixed;inset:0;background:#0008;display:grid;place-items:center;z-index:10;padding:12px}
+.wz{background:var(--card);width:min(520px,100%);border-radius:18px;padding:20px 22px;box-shadow:0 10px 40px #0006;max-height:96vh;overflow:auto;animation:pop .25s}
+.wz.shake{animation:shake .35s}
+.wt{display:flex;justify-content:space-between;align-items:center;color:var(--mut);font-size:13px}
+.x{border:0;background:none;font-size:16px}
+.dots{text-align:center;margin:8px 0}.dots i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line);margin:0 3px;cursor:pointer;transition:.2s}
+.dots i.on{background:var(--acc);transform:scale(1.5)}.dots i.done{background:var(--acc);opacity:.5}
+.big{font-size:46px;text-align:center;animation:bob 2.4s ease-in-out infinite}
+.wz h2{text-align:center;margin:.2em 0}.hint{text-align:center;color:var(--mut);margin:.2em 0 1em;font-size:13px}
+.react{text-align:center;min-height:1.4em;color:var(--acc);font-weight:600}
+.nav{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+.opts{display:flex;gap:10px}.opt{flex:1;padding:16px 8px;font-size:18px}.opt.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.body input+input,.body input+br+br{margin-top:8px}
+.code{font:700 22px monospace;letter-spacing:3px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;z-index:40;animation:pop .2s;max-width:90vw}
+.cf{position:fixed;font-size:24px;pointer-events:none;z-index:30;animation:cf 1.2s ease-out forwards}
+@keyframes pop{from{transform:translateY(12px) scale(.97);opacity:0}}
+@keyframes bob{50%{transform:translateY(-5px) rotate(4deg)}}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@keyframes cf{to{transform:translate(var(--dx),var(--dy)) rotate(360deg);opacity:0}}
+</style>
+</head>
+<body>
+<header id="hd"></header><div id="bn"></div><main id="mn"></main>
+<input type="file" id="imp" hidden accept=".json,application/json">
+<script>
+'use strict';
+/* ---------- utilitaires ---------- */
+const $=(s,e=document)=>e.querySelector(s),$$=(s,e=document)=>[...e.querySelectorAll(s)];
+const el=h=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+const now=()=>Date.now();
+const pick=(a,not)=>{let x;do x=a[Math.random()*a.length|0];while(x===not&&a.length>1);return x};
+const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch{}};
+const safeC=c=>/^#[0-9a-f]{6}$/i.test(c)?c:'#888888';
+const slug=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\W+/g,'-').toLowerCase()||'arbre';
+function toast(m){const t=el(`<div class=toast>${esc(m)}</div>`);document.body.append(t);setTimeout(()=>t.remove(),3200)}
+function boom(){for(let i=0;i<18;i++){const s=el(`<span class=cf style="left:50%;top:50%;--dx:${(Math.random()-.5)*600}px;--dy:${(Math.random()-.7)*500}px">${pick(['🌿','🍃','✨','🌳','💚','🍂'])}</span>`);document.body.append(s);setTimeout(()=>s.remove(),1300)}}
+
+/* ---------- stockage local (IndexedDB) : rien ne quitte l'appareil ---------- */
+const DB=new Promise((ok,ko)=>{const r=indexedDB.open('racines',1);r.onupgradeneeded=()=>r.result.createObjectStore('trees',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
+const tx=async(m,f)=>{const d=await DB;return new Promise((ok,ko)=>{const t=d.transaction('trees',m);const rq=f(t.objectStore('trees'));t.oncomplete=()=>ok(rq.result);t.onerror=()=>ko(t.error)})};
+// ponytail: l'arbre entier est réécrit à chaque sauvegarde; séparer les personnes en store dédié si les arbres deviennent énormes
+const saveTree=t=>tx('readwrite',s=>s.put(t)),allTrees=()=>tx('readonly',s=>s.getAll()),dropTree=id=>tx('readwrite',s=>s.delete(id));
+
+/* ---------- dates ---------- */
+const ymd=(y,m,d)=>{const t=new Date(y,m-1,d);return t.getMonth()!==m-1||t.getDate()!==+d?null:`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`};
+function parseDate(s){s=(s||'').trim();if(!s)return'';let m;
+ if(m=s.match(/^(\d{4})$/))return m[1];
+ if(m=s.match(/^(\d{1,2})[\/.\-](\d{4})$/))return+m[1]>=1&&+m[1]<=12?`${m[2]}-${m[1].padStart(2,'0')}`:null;
+ if(m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/))return ymd(+m[3],+m[2],+m[1]);
+ if(m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/))return ymd(+m[1],+m[2],+m[3]);
+ return null}
+const dispIn=iso=>{const a=(iso||'').split('-');return a.length==3?`${a[2]}/${a[1]}/${a[0]}`:a.length==2?`${a[1]}/${a[0]}`:a[0]||''};
+const fmt=iso=>{const a=(iso||'').split('-');if(a.length==3)return new Date(a[0],a[1]-1,a[2]).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});if(a.length==2)return new Date(a[0],a[1]-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});return a[0]||''};
+const yr=iso=>iso?+iso.slice(0,4):null;
+const age=p=>{const b=yr(p.birth),e=p.alive===false?yr(p.death):new Date().getFullYear();return b&&e?e-b:null};
+const SIGNS=[['Verseau ♒',20],['Poissons ♓',19],['Bélier ♈',21],['Taureau ♉',20],['Gémeaux ♊',21],['Cancer ♋',21],['Lion ♌',23],['Vierge ♍',23],['Balance ♎',23],['Scorpion ♏',23],['Sagittaire ♐',22],['Capricorne ♑',22]];
+const zodiac=(m,d)=>d<SIGNS[m-1][1]?SIGNS[(m+10)%12][0]:SIGNS[m-1][0];
+
+/* ---------- modèle ---------- */
+let T=null,HOME=[],view='tree',sel=null;
+const P=()=>Object.values(T.persons).filter(p=>!p.del);
+const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};
+const nm=p=>[p.first,p.last].filter(Boolean).join(' ')||'Sans nom';
+const kids=p=>P().filter(c=>c.parents.includes(p.id));
+const sibs=p=>P().filter(c=>c.id!==p.id&&c.parents.some(x=>p.parents.includes(x)));
+const descendants=id=>{const s=new Set([id]);let ch=true;while(ch){ch=false;for(const p of P())if(!s.has(p.id)&&p.parents.some(x=>s.has(x))){s.add(p.id);ch=true}}return s};
+const safePhoto=s=>/^data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+$/.test(s)?s:'';
+function normP(p){p.parents=Array.isArray(p.parents)?p.parents.filter(x=>typeof x==='string').slice(0,2):[];
+ for(const k of ['first','last','maiden','birth','birthPlace','death','deathPlace','job','story','storyQ','gender','partner'])p[k]=typeof p[k]==='string'?p[k]:'';
+ p.photo=safePhoto(p.photo||'');p.u=+p.u||0;p.alive=p.alive!==false;return p}
+function norm(t){t.persons=t.persons&&typeof t.persons==='object'?t.persons:{};for(const p of Object.values(t.persons))normP(p);t.mu=+t.mu||0;t.updated=+t.updated||0;
+ for(const k of ['name','family','origin','about','author'])t[k]=typeof t[k]==='string'?t[k]:'';return t}
+function mergeTree(a,b){let n=0;for(const [id,p] of Object.entries(b.persons)){const l=a.persons[id];if(!l||p.u>l.u){a.persons[id]=p;n++}}
+ if(b.mu>a.mu){for(const k of ['name','family','origin','about','author'])a[k]=b[k];a.mu=b.mu;n++}
+ a.updated=Math.max(a.updated,b.updated);return n}
+function commit(p){p.u=now();T.updated=p.u;saveTree(T);send({t:'p',p,by:ME.name});render()}
+function setPartner(p,qid){const old=get(p.partner);if(old&&old.id!==qid&&old.partner===p.id){old.partner='';commit(old)}
+ const q=qid&&get(qid);if(q){const oq=get(q.partner);if(oq&&oq.id!==p.id){oq.partner='';commit(oq)}if(q.partner!==p.id){q.partner=p.id;commit(q)}}p.partner=q?q.id:''}
+function savePerson(d,id){const p=id?T.persons[id]:{id:rid(),partner:'',parents:[]};
+ const par=d.parents.map(get).filter(Boolean).sort((a,b)=>(a.gender==='M'?0:1)-(b.gender==='M'?0:1)).map(x=>x.id);
+ Object.assign(p,{first:d.first.trim(),last:d.last.trim(),maiden:d.gender==='F'||d.maiden?d.maiden.trim():'',gender:d.gender,birth:parseDate(d.birth),birthPlace:d.birthPlace.trim(),
+  alive:d.alive!==false,death:d.alive===false?parseDate(d.death):'',deathPlace:d.alive===false?d.deathPlace.trim():'',photo:d.photo,job:d.job.trim(),story:d.story.trim(),storyQ:d.storyQ,parents:par});
+ T.persons[p.id]=p;setPartner(p,d.partner);commit(p);return p}
+
+/* ---------- assistant pas-à-pas (arbre & personnes) ---------- */
+const fn=d=>(d.first||'').trim().split(/\s+/)[0]||'Cette personne';
+const ne=d=>d.gender==='F'?'née':d.gender==='M'?'né':'né(e)';
+const Q=['Quelle phrase répétait-il/elle tout le temps ?','Un plat ou une recette qu’on associe à cette personne ?','Ton plus beau souvenir avec elle/lui ?','Une passion, une manie, un petit travers attachant ?','Un objet qui lui appartenait et qu’on garde précieusement ?','Que raconte-t-on de lui/elle aux repas de famille ?','Un lieu où il/elle se sentait chez soi ?','Quel conseil donnait-il/elle ?'];
+const SUG=['Garder les histoires de mes grands-parents','Un cadeau pour la famille','Par pure curiosité','Retrouver une branche perdue'];
+const resize=f=>new Promise(ok=>{const i=new Image();i.onload=()=>{const s=Math.min(1,320/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);ok(c.toDataURL('image/jpeg',.82))};i.onerror=()=>ok('');i.src=URL.createObjectURL(f)});
+const av=(p,c='')=>`<span class="av ${c}" style="${p.photo?`background-image:url(${p.photo})`:''}">${p.photo?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}</span>`;
+
+function wizard({steps,d,title,edit,done}){
+ let i=0;const ov=el('<div class=ov></div>');document.body.append(ov);
+ const act=()=>steps.filter(s=>!s.when||s.when(d));
+ const rx=()=>{const s=act()[i],r=$('#rx',ov);if(r)r.textContent=s.react?s.react(d):''};
+ const draw=()=>{const A=act();i=Math.max(0,Math.min(i,A.length-1));const s=A[i];
+  ov.innerHTML=`<div class=wz><div class=wt><span>${title}</span><button class=x data-w=close>✕</button></div><div class=dots>${A.map((_,j)=>`<i class="${j==i?'on':j<i?'done':''}" data-go=${j}></i>`).join('')}</div><div class=big>${s.icon}</div><h2>${esc(s.q(d))}</h2><p class=hint>${s.hint||''}</p><div class=body>${s.body(d)}</div><p class=react id=rx>${esc(s.react?s.react(d):'')}</p><div class=nav><button data-w=back ${i?'':'disabled'}>←</button>${i>0||edit?'<button class=lnk data-w=fin>Enregistrer et fermer</button>':''}<button class=pri data-w=next>${i==A.length-1?'Terminer ✨':'Suivant →'}</button></div></div>`;
+  const f=$('input:not([type=file]),textarea',ov);f&&f.focus()};
+ const fin=()=>{for(const [j,s] of act().entries()){const e=s.check&&s.check(d);if(e){i=j;draw();toast(e);return}}ov.remove();done(d)};
+ const next=()=>{const A=act(),e=A[i].check&&A[i].check(d);if(e){toast(e);const w=$('.wz',ov);w.classList.add('shake');setTimeout(()=>w.classList.remove('shake'),400);return}i<A.length-1?(i++,draw()):fin()};
+ ov.addEventListener('input',e=>{const t=e.target;if(t.name){d[t.name]=t.value;rx()}
+  if(t.classList.contains('flt')){const v=t.value.toLowerCase();$$('[data-n]',ov).forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
+ ov.addEventListener('change',async e=>{if(e.target.type==='file'&&e.target.files[0]){d.photo=await resize(e.target.files[0]);draw()}});
+ ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'){e.preventDefault();next()}});
+ ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug]');if(!t)return;const D=t.dataset;
+  if(D.w==='close')ov.remove();else if(D.w==='back'){i--;draw()}else if(D.w==='next')next();else if(D.w==='fin')fin();
+  else if(D.go){i=+D.go;draw()}
+  else if(D.k){d[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;const s=act()[i];if(s.auto&&s.auto(d)){draw();setTimeout(next,250)}else draw()}
+  else if(D.pick==='parents'){const a=d.parents,j=a.indexOf(D.id);if(j>=0)a.splice(j,1);else if(a.length<2)a.push(D.id);else toast('Deux parents maximum');t.classList.toggle('on',a.includes(D.id));rx()}
+  else if(D.pick==='partner'){d.partner=d.partner===D.id?'':D.id;$$('[data-pick=partner]',ov).forEach(x=>x.classList.toggle('on',x.dataset.id===d.partner));rx()}
+  else if(D.dice!==undefined){d.storyQ=pick(Q,d.storyQ);draw()}
+  else if(D.rm!==undefined){d.photo='';draw()}
+  else if(D.sug){d.about=D.sug;draw()}});
+ draw();return ov}
+
+const personSteps=id=>[
+ {icon:'🌱',q:()=>'Comment s’appelle cette personne ?',hint:'Prénom(s) d’usage et nom de famille.',
+  body:d=>`<input name=first placeholder="Prénom(s)" value="${esc(d.first)}"><input name=last placeholder="Nom" value="${esc(d.last)}">`,
+  react:d=>d.first.trim()?`Enchanté, ${fn(d)} ! 👋`:'',check:d=>!(d.first.trim()||d.last.trim())&&'Il faut au moins un prénom ou un nom'},
+ {icon:'🧬',q:d=>`${fn(d)} est…`,body:d=>`<div class=opts>${[['F','Une femme 👩'],['M','Un homme 👨'],['X','Autre 🧑']].map(([v,l])=>`<button class="opt ${d.gender===v?'on':''}" data-k=gender data-v=${v}>${l}</button>`).join('')}</div>`,auto:()=>true},
+ {icon:'🔑',when:d=>d.gender==='F'||d.maiden,q:d=>`${fn(d)} portait quel nom avant le mariage ?`,hint:'Le nom de jeune fille ouvre souvent une nouvelle branche. Laisse vide si inconnu.',
+  body:d=>`<input name=maiden placeholder="Nom de jeune fille" value="${esc(d.maiden)}">`,react:d=>d.maiden?`Une nouvelle branche à explorer, peut-être ? 🕵️`:''},
+ {icon:'🎂',q:d=>`Quand est ${ne(d)} ${fn(d)} ?`,hint:'JJ/MM/AAAA, MM/AAAA ou juste l’année. Vide si inconnue.',
+  body:d=>`<input name=birth placeholder="ex. 14/03/1952 ou 1952" value="${esc(d.birth)}"><input name=birthPlace placeholder="Lieu de naissance (ville, pays)" value="${esc(d.birthPlace)}">`,
+  check:d=>parseDate(d.birth)===null&&'Date non reconnue — essaie 14/03/1952 ou 1952',
+  react:d=>{const iso=parseDate(d.birth);if(!iso)return'';const a=iso.split('-').map(Number);
+   if(a.length==3)return`✨ Un ${new Date(a[0],a[1]-1,a[2]).toLocaleDateString('fr-FR',{weekday:'long'})}, sous le signe ${zodiac(a[1],a[2])}`;
+   return`✨ C’était il y a ${new Date().getFullYear()-a[0]} ans`}},
+ {icon:'🌤️',q:d=>`${fn(d)} est-${d.gender==='F'?'elle':d.gender==='M'?'il':'iel'} toujours parmi nous ?`,
+  body:d=>`<div class=opts><button class="opt ${d.alive!==false?'on':''}" data-k=alive data-v=true>Oui 🌤️</button><button class="opt ${d.alive===false?'on':''}" data-k=alive data-v=false>Non 🕊️</button></div>`+(d.alive===false?`<br><input name=death placeholder="Date de décès (ex. 02/11/2011 ou 2011)" value="${esc(d.death)}"><input name=deathPlace placeholder="Lieu de décès" value="${esc(d.deathPlace)}">`:''),
+  auto:d=>d.alive!==false,check:d=>d.alive===false&&parseDate(d.death)===null&&'Date de décès non reconnue',
+  react:d=>d.alive===false?`Une pensée pour ${fn(d)} 🕯️`:''},
+ {icon:'📸',q:d=>`Un visage pour ${fn(d)} ?`,hint:'Optionnel. La photo est réduite et reste sur ton appareil.',
+  body:d=>`<div style="text-align:center">${av(d,'lg')}</div><br><input type=file accept="image/*">${d.photo?'<p style="text-align:center"><button data-rm>Retirer la photo</button></p>':''}`,react:d=>d.photo?'Ça, c’est une belle bouille ! 😍':''},
+ {icon:'🌳',when:()=>P().some(p=>p.id!==id),q:d=>`Où se place ${fn(d)} dans l’arbre ?`,hint:'Tout est optionnel — tu pourras relier plus tard.',
+  body:d=>{const ex=id?descendants(id):new Set(),all=P().filter(p=>p.id!==id).sort((a,b)=>nm(a).localeCompare(nm(b)));
+   const ch=(k,p)=>`<span class="chip ${(k==='parents'?d.parents.includes(p.id):d.partner===p.id)?'on':''}" data-pick=${k} data-id="${p.id}" data-n="${esc((nm(p)+' '+p.maiden).toLowerCase())}">${esc(nm(p))} <small>${yr(p.birth)||''}</small></span>`;
+   return`<input class=flt placeholder="🔎 Chercher dans l’arbre…"><h4>Descendant(e) de… <small>(2 max)</small></h4><div class=chips>${all.filter(p=>!ex.has(p.id)).map(p=>ch('parents',p)).join('')||'<small>—</small>'}</div><h4>En couple avec…</h4><div class=chips>${all.map(p=>ch('partner',p)).join('')}</div>`},
+  react:d=>{const n=d.parents.map(get).filter(Boolean).map(nm);return n.length?`${fn(d)} descend de ${n.join(' & ')} 🌿`:''}},
+ {icon:'📖',q:d=>`Une anecdote sur ${fn(d)} ?`,hint:'Optionnel — c’est ce qui donne vie à un arbre. Une phrase suffit !',
+  body:d=>`<input name=job placeholder="Métier / passion" value="${esc(d.job)}"><p><b>${esc(d.storyQ)}</b> <button data-dice title="Une autre question">🎲</button></p><textarea name=story rows=4 placeholder="Écris librement…">${esc(d.story)}</textarea>`}
+];
+const blank=()=>({first:'',last:'',maiden:'',gender:'',birth:'',birthPlace:'',alive:true,death:'',deathPlace:'',photo:'',job:'',story:'',storyQ:'',parents:[],partner:''});
+function openPerson(id,pre={},after){
+ const p=id&&T.persons[id];
+ const d=p?{...blank(),...p,birth:dispIn(p.birth),death:dispIn(p.death),parents:[...p.parents],storyQ:p.storyQ||pick(Q)}:{...blank(),last:T.family||'',storyQ:pick(Q),...pre};
+ wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,steps:personSteps(id),d,done:d=>{const np=savePerson(d,id);after&&after(np);sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
+
+const treeSteps=[
+ {icon:'🌳',q:()=>'Comment veux-tu appeler cet arbre ?',hint:'« Les Martin de Bretagne », « Mes racines »…',body:d=>`<input name=name value="${esc(d.name)}" placeholder="Arbre de la famille…">`,react:d=>d.name?`« ${d.name} » — joli nom, on plante ça ! 🌱`:'',check:d=>!d.name.trim()&&'Donne un nom à ton arbre'},
+ {icon:'🏡',q:()=>'D’où vient cette famille ?',hint:'Nom de famille principal et origine : région, pays, village…',body:d=>`<input name=family value="${esc(d.family)}" placeholder="Nom de famille principal"><input name=origin value="${esc(d.origin)}" placeholder="Origine (région, pays, village…)">`,react:d=>d.origin?`${d.origin}… ça donne envie de voyager dans le temps ✈️`:''},
+ {icon:'✍️',q:()=>'Qui tient la plume ?',hint:'Ton prénom : il servira de pseudo dans les sessions live.',body:d=>`<input name=author value="${esc(d.author)}" placeholder="Ton prénom">`,react:d=>d.author?`Ravi de te rencontrer, ${d.author} !`:''},
+ {icon:'💭',q:()=>'Pourquoi crées-tu cet arbre ?',hint:'Optionnel : une intention, pour s’en souvenir.',body:d=>`<textarea name=about rows=3>${esc(d.about)}</textarea><div>${SUG.map(s=>`<span class=chip data-sug="${esc(s)}">${esc(s)}</span>`).join('')}</div>`}
+];
+function treeWizard(d,edit){wizard({title:edit?'⚙️ Infos de l’arbre':'🌳 Nouvel arbre',edit,steps:treeSteps,d,done:d=>{
+ ME.name=d.author.trim()||ME.name;LS('racines.me',ME.name);
+ if(edit){Object.assign(T,{name:d.name.trim(),family:d.family.trim(),origin:d.origin.trim(),author:d.author.trim(),about:d.about.trim(),mu:now()});T.updated=T.mu;saveTree(T);send({t:'m',m:{...T,persons:undefined}});render();return}
+ T={id:rid(),name:d.name.trim(),family:d.family.trim(),origin:d.origin.trim(),author:d.author.trim(),about:d.about.trim(),created:now(),updated:now(),mu:now(),persons:{}};
+ saveTree(T);view='tree';sel=null;cam=null;render();boom();openPerson(null,{first:ME.name});}})}
+
+/* ---------- vues ---------- */
+const CW=170,CH=70,GP=26,GX=28,GY=60;
+const life=p=>p.alive===false?`${yr(p.birth)||'?'} – ${yr(p.death)||'?'}`:p.birth?`${yr(p.birth)}${age(p)!=null?' · '+age(p)+' ans':''}`:'';
+const myKey=()=>live.host?'host':live.peer&&live.peer.id;
+const peersOn=id=>Object.entries(live.peers).filter(([k,v])=>k!==myKey()&&v.sel===id).map(([,v])=>v);
+const card=(p,pos='')=>{const pr=peersOn(p.id),c=pr[0]&&safeC(pr[0].color);
+ return`<div class="card ${p.gender} ${sel===p.id?'sel':''}" data-act=select data-id="${p.id}" data-n="${esc((nm(p)+' '+p.maiden).toLowerCase())}" style="${pos}${c?`;box-shadow:0 0 0 4px ${c}`:''}">${c?`<i class=tag style="background:${c}">${esc(pr.map(x=>x.name).join(', '))}</i>`:''}${av(p)}<div class=ct><b>${esc(nm(p))}</b><small>${life(p)}</small></div></div>`};
+
+function layout(){
+ const ps=P(),U={},units=[];
+ for(const p of ps){if(U[p.id])continue;const q=get(p.partner),m=q&&!U[q.id]?[p,q]:[p],u={m,k:[]};m.forEach(x=>U[x.id]=u);units.push(u)}
+ for(const u of units){u.m.sort((a,b)=>(b.parents.length>0)-(a.parents.length>0));
+  outer:for(const x of u.m)for(const pid of x.parents){const pu=U[pid];if(pu&&pu!==u){pu.k.push(u);u.par=pu;break outer}}}
+ units.forEach(u=>u.k.sort((a,b)=>(a.m[0].birth||'9').localeCompare(b.m[0].birth||'9')));
+ const meas=u=>{u.w=u.m.length*CW+(u.m.length-1)*GP;u.k.forEach(meas);u.kw=u.k.reduce((a,k)=>a+k.sw,0)+Math.max(0,u.k.length-1)*GX;u.sw=Math.max(u.w,u.kw)};
+ const place=(u,x,d)=>{u.x=x+(u.sw-u.w)/2;u.y=d*(CH+GY);let c=x+(u.sw-u.kw)/2;u.k.forEach(k=>{place(k,c,d+1);c+=k.sw+GX})};
+ let X=0,W=0,H=0;const roots=units.filter(u=>!u.par);
+ roots.forEach(u=>{meas(u);place(u,X,0);X+=u.sw+GX*2});
+ let svg='',cards='';
+ for(const u of units){if(u.x===undefined)continue;W=Math.max(W,u.x+u.w);H=Math.max(H,u.y+CH);
+  u.m.forEach((p,i)=>cards+=card(p,`left:${u.x+i*(CW+GP)}px;top:${u.y}px`));
+  const ym=u.y+CH/2;if(u.m.length>1)svg+=`<path d="M${u.x+CW} ${ym}H${u.x+CW+GP}"/><text x="${u.x+CW+GP/2}" y="${ym+5}" text-anchor="middle">♥</text>`;
+  if(u.k.length){const px=u.x+u.w/2,y0=u.m.length>1?ym+8:u.y+CH,my=u.y+CH+GY/2;svg+=`<path d="M${px} ${y0}V${my}"/>`;
+   for(const k of u.k)svg+=`<path d="M${px} ${my}H${k.x+CW/2}V${k.y}"/>`}}
+ return{svg,cards,W:W+40,H:H+40}}
+
+let cam=null,lay={W:1,H:1},moved=false;
+const camApply=()=>{const w=$('#world');if(w)w.style.transform=`translate(${cam.x}px,${cam.y}px) scale(${cam.k})`};
+const zoomAt=(mx,my,f)=>{const k=Math.min(2,Math.max(.15,cam.k*f));cam.x=mx-(mx-cam.x)*k/cam.k;cam.y=my-(my-cam.y)*k/cam.k;cam.k=k;camApply()};
+function camInit(){const st=$('#vw');if(!$('#world'))return;
+ if(!cam){const sw=st.clientWidth,sh=st.clientHeight,k=Math.max(.3,Math.min(1,(sw-40)/lay.W,(sh-80)/lay.H));cam={k,x:Math.max(20,(sw-lay.W*k)/2),y:40}}
+ camApply();let d=null;
+ st.onpointerdown=e=>{moved=false;if(!e.target.closest('.zc'))d={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y}};
+ st.onpointermove=e=>{if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;cam.x=d.cx+dx;cam.y=d.cy+dy;camApply()};
+ st.onpointerup=st.onpointerleave=()=>d=null;
+ st.addEventListener('click',e=>{if(moved){e.stopPropagation();moved=false}},true);
+ st.addEventListener('wheel',e=>{e.preventDefault();const r=st.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.1:1/1.1)},{passive:false})}
+function treeView(){const L=lay=layout();return`<div id=world><svg class=lines width=${L.W} height=${L.H}>${L.svg}</svg>${L.cards}</div><div class=zc><button data-act=zoom data-v=1>＋</button><button data-act=zoom data-v=-1>−</button><button data-act=fit title="Recentrer">⤢</button></div>`}
+
+function fanView(){
+ const root=get(sel)||P().sort((a,b)=>(a.birth||'9').localeCompare(b.birth||'9'))[0],R0=64,RW=72,G=5,cx=450,cy=R0+RW*G+14,S={};
+ const rec=(p,g,i)=>{if(!p)return;S[g+'-'+i]=p;if(g<G){const [a,b]=p.parents.map(get);rec(a,g+1,2*i);rec(b,g+1,2*i+1)}};rec(root,0,0);
+ const pt=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
+ const arc=(r0,r1,a0,a1)=>{const [x0,y0]=pt(r1,a0),[x1,y1]=pt(r1,a1),[x2,y2]=pt(r0,a1),[x3,y3]=pt(r0,a0);return`M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`};
+ const two=(p,x,y)=>`<text class=tx text-anchor=middle><tspan x=${x} y=${y-4}>${esc(p.first.split(' ')[0]||'')}</tspan><tspan x=${x} dy=14>${esc(p.last)}</tspan></text>`;
+ let o=`<circle cx=${cx} cy=${cy} r=${R0} class="sec ${root.gender||'N'}" data-act=select data-id="${root.id}"/>`+two(root,cx,cy-18);
+ for(let g=1;g<=G;g++)for(let i=0;i<2**g;i++){
+  const p=S[g+'-'+i],a0=Math.PI+i*Math.PI/2**g,a1=a0+Math.PI/2**g,r0=R0+(g-1)*RW,r1=r0+RW,m=(a0+a1)/2,[x,y]=pt((r0+r1)/2,m),child=S[(g-1)+'-'+(i>>1)];
+  if(p){o+=`<path d="${arc(r0,r1,a0,a1)}" class="sec ${p.gender||'N'}" data-act=select data-id="${p.id}"/>`;
+   if(g<=2)o+=two(p,x,y);else{const rot=Math.cos(m)<0?m*180/Math.PI+180:m*180/Math.PI;o+=`<text class=tx font-size=10 text-anchor=middle x=${x} y=${y+3} transform="rotate(${rot} ${x} ${y})">${esc(p.first.split(' ')[0]||p.last)}</text>`}}
+  else if(child)o+=`<path d="${arc(r0,r1,a0,a1)}" class="sec empty" data-act=addParent data-id="${child.id}"><title>Ajouter un parent</title></path><text class=tx text-anchor=middle x=${x} y=${y+4}>＋</text>`}
+ return`<h3 style="text-align:center">Ascendance de ${esc(nm(root))}</h3><p class=mut style="text-align:center">Clique sur un ancêtre pour recentrer · ＋ pour ajouter un parent manquant</p><svg viewBox="0 0 900 ${cy+16}" style="width:100%;max-width:900px;display:block;margin:auto">${o}</svg>`}
+
+function timeView(){
+ const Y=new Date().getFullYear();
+ const rows=P().map(p=>{let b=yr(p.birth),d=p.alive===false?yr(p.death):Y,est=false;if(!b&&d&&p.alive===false)b=d-70,est=true;if(b&&!d)d=b+70,est=true;return b?{p,b,d:Math.max(d,b+1),est}:null}).filter(Boolean).sort((a,b)=>a.b-b.b);
+ if(!rows.length)return'<p class=mut>Ajoute des dates de naissance pour voir la frise.</p>';
+ const min=Math.floor(Math.min(...rows.map(r=>r.b))/10)*10,max=Math.ceil(Math.max(...rows.map(r=>r.d))/10)*10,ppy=Math.max(3,Math.min(10,800/(max-min))),X=y=>(y-min)*ppy+10,W=X(max)+260,H=rows.length*28+50,step=max-min>150?50:max-min>60?10:5;
+ let o='';for(let y=min;y<=max;y+=step)o+=`<line class=axis x1=${X(y)} x2=${X(y)} y1=28 y2=${H}/><text class=tx x=${X(y)} y=18 text-anchor=middle>${y}</text>`;
+ rows.forEach((r,i)=>{const y=40+i*28;o+=`<rect class="bar ${r.p.gender||'N'} ${r.est?'est':''} ${sel===r.p.id?'sel':''}" x=${X(r.b)} y=${y} width=${(r.d-r.b)*ppy} height=18 rx=9 data-act=select data-id="${r.p.id}"/><text class=tx x=${X(r.d)+6} y=${y+13}>${esc(nm(r.p))} · ${r.b}–${r.p.alive===false?r.d:''}</text>`});
+ const n=P().length-rows.length;
+ return`<div style="overflow:auto"><svg width=${W} height=${H}>${o}</svg></div>${n?`<p class=mut>${n} personne(s) sans date de naissance non affichée(s).</p>`:''}<p class=mut>Barres en pointillés : dates estimées.</p>`}
+
+function gens(){const g={};const f=p=>{if(g[p.id]!==undefined)return g[p.id];g[p.id]=0;const ps=p.parents.map(get).filter(Boolean);let v=0;
+ if(ps.length)v=Math.max(...ps.map(f))+1;else{const q=get(p.partner),qp=q?q.parents.map(get).filter(Boolean):[];if(qp.length)v=Math.max(...qp.map(f))+1}return g[p.id]=v};P().forEach(f);return g}
+function genView(){const g=gens(),by={};P().forEach(p=>(by[g[p.id]]??=[]).push(p));
+ return`<input id=flt placeholder="🔎 Filtrer par nom…" style="max-width:320px">`+Object.keys(by).sort((a,b)=>a-b).map(k=>`<h3>Génération ${+k+1} <small>(${by[k].length})</small></h3><div class=grid>${by[k].sort((a,b)=>(a.birth||'9').localeCompare(b.birth||'9')).map(p=>card(p)).join('')}</div>`).join('')}
+
+function statsView(){const ps=P(),g=gens(),Y=new Date().getFullYear();
+ const by=ps.map(p=>yr(p.birth)).filter(Boolean),ages=ps.filter(p=>p.alive===false&&yr(p.birth)&&yr(p.death)).map(p=>yr(p.death)-yr(p.birth));
+ const top=(a,n=3)=>Object.entries(a.filter(Boolean).reduce((o,x)=>(o[x]=(o[x]||0)+1,o),{})).sort((x,y)=>y[1]-x[1]).slice(0,n).map(([k,v])=>`${esc(k)} <small>×${v}</small>`).join(', ')||'—';
+ const t0=new Date();t0.setHours(0,0,0,0);
+ const bd=ps.filter(p=>p.alive!==false&&p.birth.length===10).map(p=>{const [y,m,d]=p.birth.split('-').map(Number);let n=new Date(Y,m-1,d);if(n<t0)n=new Date(Y+1,m-1,d);return{p,days:Math.round((n-t0)/864e5),age:n.getFullYear()-y}}).sort((a,b)=>a.days-b.days).slice(0,5);
+ const tile=(l,v)=>`<div class=tile><small>${l}</small><b>${v}</b></div>`;
+ return`<div class=tiles>${tile('Personnes',ps.length)}${tile('Vivant·e·s',ps.filter(p=>p.alive!==false).length)}${tile('Générations',Math.max(...Object.values(g))+1)}${tile('Plus ancienne naissance',by.length?Math.min(...by):'—')}${tile('Âge moyen au décès',ages.length?Math.round(ages.reduce((a,b)=>a+b)/ages.length)+' ans':'—')}</div>
+ <div class=tiles>${tile('Prénoms fréquents',top(ps.map(p=>p.first.split(' ')[0])))}${tile('Noms fréquents',top(ps.map(p=>p.last)))}${tile('Lieux de naissance',top(ps.map(p=>p.birthPlace)))}</div>
+ <h3>🎂 Prochains anniversaires</h3>${bd.length?bd.map(x=>`<div><span class=chip data-act=select data-id="${x.p.id}">${esc(nm(x.p))}</span> ${x.days?`dans ${x.days} j`:'<b>aujourd’hui !</b>'} — ${x.age} ans</div>`).join(''):'<small>Ajoute des dates de naissance complètes.</small>'}`}
+
+function panel(){const p=get(sel);if(!p)return'';
+ const chip=q=>`<span class=chip data-act=select data-id="${q.id}">${esc(nm(q))}</span>`,rel=(l,a)=>a.length?`<h4>${l}</h4>${a.map(chip).join('')}`:'';
+ const a=age(p);
+ return`<button class="close x" data-act=select data-id="">✕</button><div class=ph>${av(p,'lg')}<h3>${esc(nm(p))}</h3>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
+ ${p.birth||p.birthPlace?`<div>🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
+ ${p.alive===false?`<div>🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}</div>`:''}
+ ${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}
+ ${rel('Parents',p.parents.map(get).filter(Boolean))}${rel('En couple avec',[get(p.partner)].filter(Boolean))}${rel('Enfants',kids(p))}${rel('Fratrie',sibs(p))}
+ <div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}">🗑️</button></div>`}
+
+const VIEWS=[['tree','🌳 Arbre'],['fan','🌅 Éventail'],['time','⏳ Chronologie'],['gen','🗂️ Générations'],['stats','📊 Aperçu']];
+function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines</h1><p class=mut>Ton arbre généalogique, <b>100 % sur ton appareil</b>. Exporte-le en un clic, réimporte-le où tu veux. Aucun compte, aucun serveur de stockage.</p>
+ <div class=row><button class=pri data-act=newTree>＋ Nouvel arbre</button><button data-act=import>📥 Importer une sauvegarde</button></div><h3>Mes arbres</h3>
+ ${HOME.length?HOME.map(t=>`<div class=tcard><div><b>${esc(t.name)}</b><br><small>${Object.values(t.persons).filter(p=>!p.del).length} personne(s) · modifié le ${new Date(t.updated).toLocaleDateString('fr-FR')}</small></div><button class=pri data-act=open data-id="${t.id}">Ouvrir</button><button data-act=delTree data-id="${t.id}" title="Supprimer">🗑️</button></div>`).join(''):'<p class=mut>Aucun arbre pour l’instant.</p>'}</div></div>`}
+
+function render(){
+ $('#hd').innerHTML=`<b class=logo data-act=home>🌳 Racines</b>`+(T?`<span class=tname>${esc(T.name)}</span><nav class=tabs>${VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}">${l}</button>`).join('')}</nav><span class=sp></span><button class=pri data-act=add>＋ Personne</button><button data-act=live>${live.peer?`🔴 Live · ${Object.keys(live.peers).length}`:'📡 Live'}</button><button data-act=export>💾 Exporter</button><button data-act=settings title="Infos de l’arbre">⚙️</button>`:`<span class=sp></span><button data-act=live>📡 Session live</button>`);
+ const mn=$('#mn'),bn=$('#bn');
+ if(!T){bn.innerHTML='';mn.innerHTML=homeView();return}
+ bn.innerHTML=P().length&&(!T.lastExport||(T.updated>T.lastExport&&now()-T.lastExport>864e5))?`<div class=banner>💾 Pense à exporter ta sauvegarde (${T.lastExport?'dernier export : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais exportée'}). Tout est stocké uniquement sur cet appareil. <button data-act=export>Exporter maintenant</button></div>`:'';
+ let body;
+ try{body=!P().length?`<div class=empty-st><div><div style="font-size:60px">🌱</div><h2>Plante la première graine</h2><p class=mut>Ajoute la première personne de ton arbre.</p><button class=pri data-act=add>＋ Ajouter une personne</button></div></div>`:{tree:treeView,fan:fanView,time:timeView,gen:genView,stats:statsView}[view]()}
+ catch(e){console.error(e);body=`<p>Erreur d’affichage : ${esc(e.message)}</p>`}
+ const empty=!P().length;
+ mn.innerHTML=`<div id=vw class="${view==='tree'&&!empty?'st':'scroll'}">${body}</div><aside id=pn ${get(sel)?'':'hidden'}>${panel()}</aside>`;
+ if(view==='tree'&&!empty)camInit()}
+
+/* ---------- actions ---------- */
+async function goHome(){HOME=await allTrees();T=null;sel=null;render()}
+const ACT={
+ home:goHome,
+ open({id}){T=norm(HOME.find(t=>t.id===id));sel=null;cam=null;view='tree';render()},
+ async delTree({id}){const t=HOME.find(t=>t.id===id);if(confirm(`Supprimer définitivement « ${t.name} » de cet appareil ?\n(Pense à l’exporter avant si besoin.)`)){await dropTree(id);goHome()}},
+ newTree(){treeWizard({name:'',family:'',origin:'',author:ME.name,about:''})},
+ settings(){treeWizard({name:T.name,family:T.family,origin:T.origin,author:T.author,about:T.about},true)},
+ import(){$('#imp').click()},
+ export(){T.lastExport=now();saveTree(T);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'racines',v:1,tree:T})],{type:'application/json'}));a.download=`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.racines.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('💾 Sauvegarde exportée');render()},
+ view({v}){view=v;render()},
+ add(){openPerson()},
+ select({id}){sel=id||null;presence();render()},
+ edit({id}){openPerson(id)},
+ addChild({id}){const p=get(id),q=get(p.partner);openPerson(null,{parents:[p.id,q&&q.id].filter(Boolean),last:p.gender==='F'&&q?q.last:p.last})},
+ addPartner({id}){openPerson(null,{partner:id})},
+ addParent({id}){openPerson(null,{},np=>{const c=T.persons[id];c.parents=[...c.parents,np.id].slice(0,2);commit(c)})},
+ del({id}){const p=get(id);if(!p||!confirm(`Supprimer ${nm(p)} de l’arbre ?`))return;const q=get(p.partner);if(q){q.partner='';commit(q)}Object.assign(p,{del:true,photo:'',partner:''});sel=null;commit(p)},
+ zoom({v}){const r=$('#vw').getBoundingClientRect();zoomAt(r.width/2,r.height/2,+v>0?1.25:.8)},
+ fit(){cam=null;camInit()},
+ live(){liveUI(true)}
+};
+document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(a&&ACT[a.dataset.act])ACT[a.dataset.act](a.dataset)});
+document.addEventListener('input',e=>{if(e.target.id==='flt'){const v=e.target.value.toLowerCase();$$('.grid .card').forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=$$('.ov').pop();if(o){o.remove();if(o===liveOv)liveOv=null}}});
+$('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ try{const o=JSON.parse(await f.text());if(o.app!=='racines'||!o.tree||!o.tree.id)throw 0;const r=norm(o.tree);HOME=await allTrees();const l=HOME.find(t=>t.id===r.id);
+  if(l){mergeTree(l,r);await saveTree(l);toast('Arbre fusionné avec la version existante')}else{await saveTree(r);toast('Arbre importé ✔')}
+  await goHome()}catch{toast('Fichier invalide : ce n’est pas une sauvegarde Racines')}});
+
+/* ---------- live : WebRTC pair-à-pair via PeerJS (les données ne passent par aucun serveur) ---------- */
+const COLORS=['#e4572e','#17bebb','#d9a600','#76b041','#a05195','#ff7f50'];
+const ME={name:LS('racines.me')||'',color:COLORS[Math.random()*6|0]};
+const live={peer:null,conns:[],host:false,code:'',peers:{},sent:0};
+let liveOv=null;
+const send=(m,except)=>{for(const c of live.conns)if(c!==except&&c.open)c.send(m)};
+const bcastPeers=()=>send({t:'peers',peers:live.peers});
+function presence(){if(!live.peer)return;if(live.host){live.peers.host.sel=sel;bcastPeers()}else send({t:'sel',id:sel})}
+const loadPeer=()=>window.Peer?Promise.resolve():new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';s.onload=ok;s.onerror=()=>ko(new Error('PeerJS indisponible (hors-ligne ?)'));document.head.append(s)});
+async function hostStart(){await loadPeer();const code=Math.random().toString(36).slice(2,8).toUpperCase(),peer=new Peer('racines-'+code);
+ Object.assign(live,{peer,host:true,code,peers:{host:{name:ME.name,color:ME.color,sel}}});
+ peer.on('open',()=>{liveUI();render()});
+ peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();hostStart()}else{toast('Live : '+e.type);leave()}});
+ peer.on('connection',c=>{c.on('data',m=>onMsg(m,c));c.on('close',()=>{live.conns=live.conns.filter(x=>x!==c);if(live.peers[c.peer]){toast(`👋 ${live.peers[c.peer].name} est parti·e`);delete live.peers[c.peer];bcastPeers();liveUI();render()}})})}
+async function joinStart(code,name){await loadPeer();ME.name=name;LS('racines.me',name);const peer=new Peer();Object.assign(live,{peer,host:false,code,sent:0,peers:{}});
+ peer.on('open',()=>{const c=peer.connect('racines-'+code,{reliable:true});live.conns=[c];
+  c.on('open',()=>{c.send({t:'hi',me:{name:ME.name,color:ME.color,sel}});toast('⏳ En attente de l’acceptation de l’hôte…')});
+  c.on('data',m=>onMsg(m,c));c.on('close',()=>{if(live.peer){toast('Session terminée — ta copie reste sur cet appareil');leave()}})});
+ peer.on('error',e=>{toast(e.type==='peer-unavailable'?'Code introuvable : l’hôte est-il connecté ?':'Connexion impossible ('+e.type+')');leave()})}
+function leave(){if(live.peer)live.peer.destroy();Object.assign(live,{peer:null,conns:[],host:false,code:'',peers:{},sent:0});liveUI();render()}
+async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
+ if(live.host&&m.t!=='hi'&&!live.conns.includes(c))return;
+ switch(m.t){
+ case'hi':{if(!live.host||live.conns.includes(c)||!m.me)return;const me={name:String(m.me.name||'Invité').slice(0,30),color:safeC(m.me.color)};
+  if(!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} ». Accepter ?`)){c.close();return}
+  live.conns.push(c);live.peers[c.peer]=me;c.send({t:'tree',tree:T});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
+ case'tree':{const r=norm(m.tree);let n=0;
+  if(!live.host&&(!T||T.id!==r.id)){const l=(await allTrees()).find(t=>t.id===r.id);if(l){mergeTree(l,r);T=l}else T=r;view='tree';cam=null;sel=null;n=1}else if(T&&T.id===r.id)n=mergeTree(T,r);
+  if(!T)return;await saveTree(T);if(!live.host&&!live.sent){live.sent=1;c.send({t:'tree',tree:T})}if(live.host&&n)send({t:'tree',tree:T},c);render();break}
+ case'p':{if(!T||!m.p||!m.p.id)return;const p=normP(m.p),l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host)send(m,c);render();break}
+ case'm':{if(!T||!m.m)return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
+ case'sel':{if(live.host&&live.peers[c.peer]){live.peers[c.peer].sel=typeof m.id==='string'?m.id:null;bcastPeers();render()}break}
+ case'peers':{if(!live.host&&m.peers){live.peers=m.peers;liveUI();render()}break}}}
+function liveUI(open){
+ if(open&&!liveOv){liveOv=el('<div class=ov></div>');document.body.append(liveOv);
+  liveOv.addEventListener('click',async e=>{const b=e.target.closest('[data-l]');if(!b)return;const l=b.dataset.l,nm=()=>($('#lname',liveOv).value||'').trim()||'Anonyme';
+   try{if(l==='close'){liveOv.remove();liveOv=null}
+   else if(l==='host'){ME.name=nm();LS('racines.me',ME.name);await hostStart()}
+   else if(l==='join'){const c=($('#lcode',liveOv).value||'').trim().toUpperCase();if(!c)return toast('Entre le code');await joinStart(c,nm());liveUI()}
+   else if(l==='copy'){await navigator.clipboard.writeText(location.href.split('#')[0]+'#join='+live.code);toast('🔗 Lien copié')}
+   else if(l==='leave')leave()}catch(err){toast(err.message)}})}
+ if(!liveOv||!liveOv.isConnected)return;
+ const on=!!live.peer,pre=typeof open==='string'?open:'';
+ liveOv.innerHTML=`<div class=wz><div class=wt><span>📡 Session live</span><button class=x data-l=close>✕</button></div>`+(on?
+  `<p>Code : <b class=code>${esc(live.code)}</b> ${live.host?'':'<small>(connecté à l’hôte)</small>'}</p>${live.host?'<p><button data-l=copy>🔗 Copier le lien d’invitation</button></p>':''}<h4>Participants</h4>${Object.entries(live.peers).map(([k,v])=>`<div><span class=dot style="background:${safeC(v.color)}"></span>${esc(v.name)}${k===myKey()?' (moi)':''}${k==='host'?' 👑':''}</div>`).join('')||'<small>Connexion…</small>'}<p class=hint>Les modifications s’affichent en direct chez tout le monde. Chacun garde sa copie sur son appareil.${live.host?' Si tu quittes, la session s’arrête.':''}</p><button data-l=leave>Quitter la session</button>`
+  :`<p class=hint>Édite l’arbre à plusieurs en direct. Les données circulent <b>d’appareil à appareil</b> (WebRTC) — rien n’est envoyé à GitHub. L’hôte valide chaque invité.</p><label>Ton prénom<input id=lname value="${esc(ME.name)}"></label>${T?`<p><button class=pri data-l=host>Héberger « ${esc(T.name)} »</button></p>`:''}<h4>Rejoindre une session</h4><input id=lcode placeholder="Code (ex. K3F9QZ)" value="${esc(pre)}" style="text-transform:uppercase"><p><button data-l=join>Rejoindre</button></p><p class=hint>En rejoignant, tu reçois une copie de l’arbre, stockée uniquement sur ton appareil.</p>`)+'</div>'}
+
+/* ---------- démarrage ---------- */
+(async()=>{try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
+ HOME=await allTrees();render();
+ const m=location.hash.match(/join=([A-Za-z0-9]+)/);if(m){history.replaceState(null,'',location.pathname+location.search);liveUI(m[1].toUpperCase())}})();
+</script>
+</body>
+</html>

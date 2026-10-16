@@ -76,6 +76,19 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] **Côté hôte** : un média remplacé reste disponible le temps des transferts en cours. Si un transfert échoue à cause d'un remplacement, afficher « ce média a été remplacé » et recharger la liste.
 - [ ] **Média non reconnu à l'arrivée** : il est proposé comme ajout dans les tickets, à valider par l'hôte, même s'il s'agit d'un doublon. Pas de conflit silencieux.
 
+## Priorité 6 bis : Règles d'arrivée et de modification en session
+
+**Règle d'or** : seules les différences apportées par une personne qui arrive avec un arbre différent passent par la validation de l'hôte. Les modifications faites en direct par les éditeurs autorisés sont appliquées immédiatement, sans validation, et ne peuvent pas être refusées.
+
+- [ ] **À l'arrivée, notification à l'invité** : « Il vous manque N médias. Voulez-vous les récupérer ? » (oui / non).
+- [ ] **⚠️ Cette proposition ne concerne que les médias absents de la version de l'hôte.** Les médias que l'arrivant a ajoutés ou modifiés de son côté ne lui sont jamais proposés : ils restent sur son appareil et deviennent des tickets.
+- [ ] **Côté hôte** : une notification en haut, avec le nombre de modifications, ajouts et suppressions reçus. Seul l'hôte peut les valider ou les refuser.
+- [ ] **⚠️ Validation par l'hôte uniquement** : ✅ et ❌ ne sont accessibles que pour l'hôte, avec confirmation à chaque décision.
+- [ ] **Sauvegarde avant arrivée** : l'arrivant qui voit son arbre remplacé par celui de l'hôte garde sa version dans « Mes arbres » (« avant fusion »). Ses modifications ne sont récupérables qu'à partir de cette copie si l'hôte refuse.
+- [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »
+- [ ] **Retour en arrière par personne** : chaque personne ne peut annuler que ses propres actions (Ctrl+Z). Il n'existe pas d'annulation de l'arbre général.
+- [ ] Les modifications d'un éditeur autorisé en direct ne passent jamais par les tickets. Elles sont appliquées telles quelles.
+
 ## Priorité 7 : Validation des tickets avec aperçu des médias
 
 - [ ] **Photo modifiée** : afficher l'ancienne et la nouvelle côte à côte, ou avec un curseur avant/après. Pas de comparaison pixel par pixel, pour éviter les calculs lourds.
@@ -100,7 +113,7 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 
 ## Priorité 10 : Annulation (Ctrl+Z)
 
-- [ ] Annulation des dernières actions (une trentaine), avec le raccourci Ctrl+Z et le bouton ↩️.
+- [ ] Annulation des dernières actions de **la personne elle-même** (une trentaine), avec le raccourci Ctrl+Z et le bouton ↩️. Pas d'annulation de l'arbre général.
 - [ ] Légère : seuls les changements de fiche sont gardés, pas de copie des médias.
 - [ ] **La confirmation reste la protection principale** : pop-up avant tout remplacement ou suppression de média (« Êtes-vous sûr de vouloir supprimer ce média ? »).
 - [ ] L'annulation est le **dernier recours** pour les actions récentes.

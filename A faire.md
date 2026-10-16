@@ -15,40 +15,68 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] Règle de travail : jamais de fusion `dev` → `main` sans test. Passer par une *Pull request* pour voir les changements avant publication.
 - [ ] Les données restent dans le navigateur de chacun, pas dans le dépôt : aucune opération Git ne les efface.
 
-## Priorité 2 : Sauvegarde et import (ZIP)
+## Priorité 2 : Stockage et sauvegarde
 
-- [ ] **Export ZIP** : `arbre.json` + dossier `medias/` contenant tous les fichiers.
-- [ ] **Import du ZIP**, avec retour possible sur l'ancien format `.json`. Détection automatique du format, sans que la personne ait à choisir.
-- [ ] Import en **deux gestes** seulement : « 📥 Importer » puis choix du fichier. Simple pour les personnes peu à l'aise avec le numérique.
-- [ ] **Message de confirmation avant import** : « Cet arbre contient N personnes et M médias. Importer ? »
-- [ ] **Bouton « 📤 Partager la sauvegarde »** : ouvre le menu de partage du téléphone (WhatsApp, Mail, Drive) au lieu de simplement télécharger le fichier.
+- [ ] **⚠️ Stockage persistant** : demander au navigateur de ne pas effacer les données (déjà prévu dans le code, à vérifier).
+- [ ] **Avertissement iPhone** : Safari peut effacer les données d'un site non utilisé pendant 7 jours. Recommander d'installer l'appli sur l'écran d'accueil (voir idée 13 dans New features).
 - [ ] **Rappel de sauvegarde toutes les 10 minutes**, seulement s'il y a des modifications non exportées. Pas de rappel pendant qu'on écrit. Un bouton « Exporter maintenant » lance l'export.
 - [ ] Le rappel ne sauvegarde jamais tout seul : le téléchargement est toujours déclenché manuellement par la personne.
 - [ ] **Limite connue** : sur téléphone, un export crée un nouveau fichier. L'ancien doit être supprimé à la main. Sur Chrome d'ordinateur, il est possible d'écraser le fichier existant (à décider).
 - [ ] **Pas de sauvegarde automatique dans la galerie.** Le risque vient des services de sauvegarde du téléphone (Google Photos, iCloud), pas de l'appli.
 
-## Priorité 3 : Séparation des médias
+## Priorité 3 : Deux exports distincts
+
+### Export « Sauvegarde de l'arbre » (bouton par défaut)
+
+- [ ] Un seul fichier ZIP, complet : données **et** médias. Pas de version légère.
+- [ ] Contenu : `arbre.json` (toutes les données) à la racine, plus un dossier par personne contenant ses médias. Chaque média n'est présent qu'une seule fois.
+- [ ] Un fichier `LISEZ-MOI.txt` explique la structure, pour pouvoir reconstruire une appli même si Racines ne fonctionne plus.
+- [ ] Le fichier pèse presque autant que l'export « Médias pour albums », car les médias sont les mêmes fichiers. Seul `arbre.json` s'ajoute (quelques dizaines à quelques centaines de Ko).
+- [ ] Vérifier la taille acceptée par le partage (WhatsApp, Mail) avant d'activer « Partager la sauvegarde » (à tester).
+
+### Export « Médias pour albums »
+
+- [ ] Un ZIP contenant uniquement les médias, rangés par personne, sans données ni `arbre.json`.
+- [ ] Objectif : voir les photos, écouter les vocaux et regarder les vidéos dans la galerie ou sur l'ordinateur, sans l'appli.
+- [ ] Noms de fichiers explicites : `Jean-Dupont_1952_souvenir_2026-10-16.mp4` (qui, année de naissance, type, date d'enregistrement).
+
+## Priorité 4 : Import de l'arbre
+
+- [ ] **Import en deux gestes** seulement : « 📥 Importer » puis choix du fichier. Simple pour les personnes peu à l'aise avec le numérique.
+- [ ] **Détection automatique** du format : ZIP complet ou ancien `.json`, sans que la personne ait à choisir.
+- [ ] **Message de confirmation avant import** : « Cet arbre contient N personnes et M médias. Importer ? »
+- [ ] **Import des médias sans relecture inutile** : pour chaque média, si son empreinte est déjà présente dans le navigateur, il n'est ni relu ni réécrit.
+- [ ] **Vérification d'intégrité** : à l'import, l'empreinte de chaque fichier est recalculée pour s'assurer qu'il n'est pas corrompu.
+- [ ] Les noms de fichiers ne servent pas à identifier un média : un fichier renommé dans le ZIP reste reconnu grâce à son empreinte.
+
+## Priorité 5 : Séparation des médias et identification
 
 - [ ] Stocker chaque vocal, vidéo et photo comme un fichier à part, avec un identifiant.
+- [ ] **Identifiant = empreinte SHA-256 du contenu.** Même contenu = même identifiant. Contenu modifié = nouvel identifiant.
 - [ ] La fiche ne garde que les identifiants des médias (les modifications de texte redeviennent légères).
-- [ ] **Un identifiant par version** : si un média est remplacé, la nouvelle version a un nouvel identifiant. Aucun mélange possible entre deux versions.
 - [ ] **Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil.
 - [ ] **⚠️ Média supprimé puis annulé** : il doit rester présent sur l'appareil jusqu'à la fin de la session, puis être supprimé. Si l'annulation est impossible après la session, il n'est pas restauré.
+- [ ] **⚠️ Média modifié hors de l'appli** (recadré, retouché, ou simplement réenregistré dans un logiciel) : l'empreinte change, donc le fichier n'est plus reconnu. Pour changer un média, passer par l'appli.
 
-## Priorité 4 : Live et téléchargement des médias
+## Priorité 6 : Live et téléchargement des médias
 
 - [ ] À l'arrivée d'un proche, n'envoyer que la structure et les textes, jamais les médias.
-- [ ] **Téléchargement à la demande** : quand on ouvre une fiche, ses médias sont récupérés. Petits fichiers (vocal, photo) automatiquement ; vidéo après confirmation, avec sa taille affichée (ex. « Télécharger cette vidéo de 18 Mo ? »).
-- [ ] Une fois reçu, un média reste sur l'appareil : pas de nouveau téléchargement.
-- [ ] **Bouton « Tout télécharger »** dans la session, avec l'avancement (ex. « 120 / 300 médias »). La personne peut faire autre chose pendant le téléchargement.
-- [ ] **Avertissement en quittant** s'il reste des médias non téléchargés : « Il reste N médias. Ils ne seront disponibles que si l'hôte est connecté. Quitter quand même ? »
+- [ ] **Deux types de transferts, avec des noms distincts dans l'interface** :
+  - « Récupérer sur cet appareil » : stockage dans le navigateur, pour utiliser l'appli. Rien n'apparaît dans la galerie.
+  - « Enregistrer dans la galerie » : création d'un fichier, visible dans la galerie ou le dossier de l'ordinateur.
+- [ ] **Téléchargement à la demande** : quand on ouvre une fiche, ses médias sont récupérés. Petits fichiers (vocal, photo) automatiquement ; vidéo après confirmation, avec sa taille affichée (ex. « Récupérer cette vidéo de 18 Mo ? »).
+- [ ] **Indicateur des médias manquants** : une pastille sur la personne, et sur la zone concernée dans la fiche (vocal, photo…).
+- [ ] **Bouton « Tout récupérer »** dans la session, avec l'avancement (ex. « 120 / 300 médias »). La personne peut faire autre chose pendant le transfert.
+- [ ] **Avertissement en quittant** s'il reste des médias non récupérés : « Tu n'as pas tous les médias. Tu ne verras pas tout hors session. Tout récupérer maintenant ? »
 - [ ] **Avertissement à l'export** si des médias manquent sur cet appareil.
-- [ ] **Reprise d'un téléchargement interrompu** : chaque média est reçu par morceaux, et les morceaux déjà reçus sont gardés.
-- [ ] **⚠️ Média modifié ou supprimé pendant son téléchargement** : prévenir la personne, abandonner les morceaux de l'ancienne version, puis reprendre avec la nouvelle version. Les médias déjà complets ne sont pas retéléchargés.
+- [ ] Une fois reçu, un média reste sur l'appareil : pas de nouveau transfert.
+- [ ] **Reprise d'un transfert interrompu** : chaque média est reçu par morceaux, et les morceaux déjà reçus sont gardés.
+- [ ] **⚠️ Média modifié ou supprimé pendant son transfert** : prévenir la personne, abandonner les morceaux de l'ancienne version, puis reprendre avec la nouvelle version. Les médias déjà complets ne sont pas retéléchargés.
 - [ ] Le compteur « il reste N médias » ne compte que les médias actuellement référencés et absents de l'appareil. Un média remplacé n'y apparaît jamais.
-- [ ] **Côté hôte** : un média remplacé reste disponible le temps des téléchargements en cours. Si un téléchargement échoue à cause d'un remplacement, afficher « ce média a été remplacé » et recharger la liste.
+- [ ] **Côté hôte** : un média remplacé reste disponible le temps des transferts en cours. Si un transfert échoue à cause d'un remplacement, afficher « ce média a été remplacé » et recharger la liste.
+- [ ] **Média non reconnu à l'arrivée** : il est proposé comme ajout dans les tickets, à valider par l'hôte, même s'il s'agit d'un doublon. Pas de conflit silencieux.
 
-## Priorité 4 bis : Validation des tickets avec aperçu des médias
+## Priorité 7 : Validation des tickets avec aperçu des médias
 
 - [ ] **Photo modifiée** : afficher l'ancienne et la nouvelle côte à côte, ou avec un curseur avant/après. Pas de comparaison pixel par pixel, pour éviter les calculs lourds.
 - [ ] **Photo ajoutée ou supprimée** : affichage en rose (ajouté) ou en rouge transparent (supprimé), comme les autres données.
@@ -57,30 +85,28 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] Les médias du ticket restent sur l'appareil de l'invité : l'hôte les récupère à l'ouverture du ticket. L'hôte doit donc être connecté à l'invité pour voir le nouveau média.
 - [ ] Les miniatures sont ajoutées à `arbre.json` pour être disponibles hors session.
 
-## Priorité 5 : Formats des médias
+## Priorité 8 : Formats des médias
 
 - [ ] **Son** : AAC dans un fichier `.m4a`, mono, 48 kbit/s (environ 180 Ko par minute). Lu partout.
-- [ ] **Image** : WebP, 1280 px maximum, qualité 80 % (environ 100 Ko par photo). Environ 30 % plus léger que le JPEG.
+- [ ] **Image** : JPEG, 1280 px maximum, qualité 80 % (environ 170 Ko par photo). Lu par tous les appareils, y compris les plus anciens.
 - [ ] **Vidéo** : MP4 avec codec H.264, 720p maximum, 60 secondes maximum (environ 9 Mo par minute). Format le plus universel.
 - [ ] Vidéo importée déjà en MP4 H.264 et assez légère : on la garde telle quelle. Sinon, l'appli demande de la réduire avec l'appli Photos du téléphone (pas de conversion dans le navigateur, trop lente).
-- [ ] **À décider** : garder le JPEG en secours pour les très anciens appareils (Android ou Windows d'avant 2019).
-- [ ] **Nom de fichier explicite** pour chaque média exporté, par exemple `Jean-Dupont_1952_souvenir_2026-10-16.mp4` : qui, année de naissance, type, date d'enregistrement.
 
-## Priorité 6 : Enregistrer un média dans la galerie
+## Priorité 9 : Enregistrer un média dans la galerie
 
 - [ ] **Bouton « 💾 Enregistrer » sur chaque média** : sur téléphone, ouvre le menu de partage natif (« Enregistrer la vidéo » sur iPhone, ou téléchargement sur Android) ; sur ordinateur, téléchargement dans le dossier Téléchargements.
 - [ ] Le téléchargement en dur est **toujours manuel**, jamais automatique.
-- [ ] **À décider** : bouton « Tout en ZIP » pour ordinateur, rangé par personne. Sur téléphone, le ZIP reste réservé à la sauvegarde.
 - [ ] Signaler dans l'appli que les fichiers enregistrés dans la galerie peuvent être envoyés vers le cloud par les services du téléphone.
 
-## Priorité 7 : Annulation (Ctrl+Z)
+## Priorité 10 : Annulation (Ctrl+Z)
 
 - [ ] Annulation des dernières actions (une trentaine), avec le raccourci Ctrl+Z et le bouton ↩️.
 - [ ] Légère : seuls les changements de fiche sont gardés, pas de copie des médias.
 - [ ] **La confirmation reste la protection principale** : pop-up avant tout remplacement ou suppression de média (« Êtes-vous sûr de vouloir supprimer ce média ? »).
 - [ ] L'annulation est le **dernier recours** pour les actions récentes.
+- [ ] Annuler un remplacement de média n'est possible que si l'ancien média est encore présent (voir Priorité 5).
 
-## Priorité 8 : Nouveaux enregistrements
+## Priorité 11 : Nouveaux enregistrements
 
 - [ ] **Vocal « anecdote »** : raconté par la personne elle-même ou par un autre narrateur (champ « narrateur »).
 - [ ] **Onglet « Souvenir »** (commémoration) :
@@ -89,7 +115,7 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] Limites : vocal 2 min maximum, vidéo 1 min et 30 Mo maximum, total par personne environ 50 Mo, alerte à 70 % de l'espace disponible.
 - [ ] Limite à expliquer : un appel en cours (téléphone, WhatsApp) bloque le son sur téléphone.
 
-## Priorité 9 : Conflits pendant le live
+## Priorité 12 : Conflits pendant le live
 
 - [ ] Deux personnes qui modifient la même fiche en même temps : la dernière modification gagne actuellement. À améliorer si cela pose problème en pratique.
 

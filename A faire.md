@@ -41,7 +41,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 ## Priorité 4 : Import de l'arbre
 
 - [ ] **Import en deux gestes** seulement : « 📥 Importer » puis choix du fichier. Simple pour les personnes peu à l'aise avec le numérique.
-- [ ] **Détection automatique** du format : ZIP exporté ou ancien `.json`, sans que la personne ait à choisir.
+- [ ] **Un seul format accepté** : le ZIP exporté par Racines. Pas d'ancien format à prendre en charge, l'appli n'ayant pas encore d'utilisateurs.
 - [ ] **Message de confirmation avant import** : « Cet arbre contient N personnes et M médias. Importer ? »
 - [ ] **Import des médias sans relecture inutile** : pour chaque média, si son empreinte est déjà présente dans le navigateur (y compris un doublon, c'est-à-dire un fichier au contenu identique), il n'est ni relu ni réécrit.
 - [ ] **Vérification d'intégrité** : à l'import, l'empreinte de chaque fichier est recalculée pour s'assurer qu'il n'est pas corrompu.

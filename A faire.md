@@ -17,7 +17,7 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 
 ## Priorité 2 : Stockage, sauvegarde et accueil
 
-- [ ] **⚠️ Stockage persistant** : demander au navigateur de ne pas effacer les données (déjà prévu dans le code, à vérifier).
+- [ ] **⚠️ Stockage persistant** : vérifier que le code demande bien le stockage persistant au démarrage.
 - [ ] **Avertissement iPhone** : Safari peut effacer les données d'un site non utilisé pendant 7 jours. Recommander d'installer l'appli sur l'écran d'accueil (voir « Mode hors-ligne installable » dans New features).
 - [ ] **Pop-up de bienvenue** à chaque arrivée sur le site : « Bienvenue dans Racines ! », suivi d'une seule phrase de présentation. En bas, en plus petit : « Si vous êtes en navigation privée, les informations et données ne seront pas sauvegardées. Il est donc préférable d'utiliser un navigateur classique. »
 - [ ] **Rappel de sauvegarde toutes les 10 minutes**, seulement s'il y a des modifications non exportées. Pas de rappel pendant qu'on écrit. Un bouton « Exporter tout l'arbre » lance l'export.

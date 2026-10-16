@@ -36,7 +36,8 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] Un fichier `LISEZ-MOI.txt` explique la structure, pour pouvoir reconstruire une appli même si Racines ne fonctionne plus.
 - [ ] Le ZIP sert à deux choses : réimporter l'arbre dans l'appli (sur n'importe quel navigateur), et retrouver les fichiers à la main dans la galerie ou sur l'ordinateur.
 - [ ] **Avertissement à l'export** si des médias manquent sur cet appareil.
-- [ ] Vérifier la taille acceptée par le partage (WhatsApp, Mail) avant d'activer « Partager la sauvegarde » (à tester).
+- [ ] **Bouton « 📤 Partager la sauvegarde »** : ouvre le menu de partage natif du téléphone (WhatsApp, Mail, Drive) pour envoyer le ZIP complet, au lieu de le télécharger.
+- [ ] Vérifier la taille acceptée par le partage (WhatsApp, Mail) avant de publier ce bouton (à tester).
 
 ## Priorité 4 : Import de l'arbre
 
@@ -77,10 +78,10 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 **Règle d'or** : seules les différences apportées par une personne qui arrive avec un arbre différent passent par la validation de l'hôte. Les modifications faites en direct par les éditeurs autorisés sont appliquées immédiatement, sans validation, et ne peuvent pas être refusées.
 
 **Arrivée d'un invité**
-- [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
+- [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Le code actuel écrit encore « avant fusion » : à renommer. Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
 - [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
 - [ ] **Notification à l'arrivée** : « Il manque N médias à ton arbre. Voulez-vous tout récupérer ? » Oui ou non. Le nombre est un total : la liste détaillée n'est pas affichée.
-- [ ] **Si oui** : tous les médias absents ou différents sont récupérés.
+- [ ] **Si oui** : tous les médias absents de son arbre sont récupérés. Les médias propres à l'invité ne sont jamais remplacés.
 - [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante, un bouton « ⬇️ Récupérer sur mon arbre ». Il s'agit de télécharger dans son arbre, pas d'exporter.
 - [ ] **Médias identiques** : un média qui a la même empreinte que celui de l'hôte n'est jamais signalé, ni dans la notification, ni comme modification, ni dans les tickets. Il n'est pas à télécharger.
 - [ ] **⚠️ Les médias de l'invité lui-même ne sont jamais proposés** : ses propres photos, vidéos ou vocaux modifiés ou ajoutés restent sur son appareil et deviennent des tickets.
@@ -94,7 +95,6 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 
 **Retour en arrière**
 - [ ] **Retour en arrière par personne** : chaque personne ne peut annuler que ses propres actions (Ctrl+Z). Il n'existe pas d'annulation de l'arbre général.
-- [ ] Les modifications d'un éditeur autorisé en direct ne passent jamais par les tickets. Elles sont appliquées telles quelles.
 
 ## Priorité 7 : Validation des tickets avec aperçu des médias
 

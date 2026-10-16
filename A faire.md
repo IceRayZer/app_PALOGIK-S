@@ -86,6 +86,9 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] **⚠️ Validation par l'hôte uniquement** : ✅ et ❌ ne sont accessibles que pour l'hôte, avec confirmation à chaque décision.
 - [ ] **Sauvegarde avant arrivée** : l'arrivant qui voit son arbre remplacé par celui de l'hôte garde sa version dans « Mes arbres » (« avant fusion »). Ses modifications ne sont récupérables qu'à partir de cette copie si l'hôte refuse.
 - [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »
+- [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
+- [ ] **Après avoir quitté une session**, l'arbre personnel contient la dernière version reçue de la session, y compris les modifications des éditeurs. Il n'y a pas de retour automatique à la version d'avant.
+- [ ] La copie « avant fusion » créée automatiquement ne se crée que s'il y a des différences à valider. Elle ne remplace pas la sauvegarde volontaire, et ne doit pas être présentée comme une garantie.
 - [ ] **Retour en arrière par personne** : chaque personne ne peut annuler que ses propres actions (Ctrl+Z). Il n'existe pas d'annulation de l'arbre général.
 - [ ] Les modifications d'un éditeur autorisé en direct ne passent jamais par les tickets. Elles sont appliquées telles quelles.
 

@@ -155,7 +155,7 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 </head>
 <body>
 <header id="hd"></header><nav id="nv"></nav><div id="bn"></div><main id="mn"></main>
-<input type="file" id="imp" hidden accept=".json,application/json">
+<input type="file" id="imp" hidden accept=".zip,application/zip,application/x-zip-compressed">
 <script>
 'use strict';
 /* ---------- utilitaires ---------- */
@@ -464,7 +464,7 @@ function popup(){let ov=$('#pop');const p=get(popId);if(!p){if(ov)ov.remove();re
 
 const VIEWS=[['tree','🌳 Arbre'],['fan','🌅 Éventail'],['time','⏳ Chronologie'],['gen','🗂️ Générations'],['stats','📊 Aperçu']];
 function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines</h1><p class=mut>Ton arbre généalogique, <b>100 % sur ton appareil</b>. Exporte-le en un clic, réimporte-le où tu veux. Aucun compte, aucun serveur de stockage.</p>
- <div class=row><button class=pri data-act=newTree>＋ Nouvel arbre</button><button data-act=import>📥 Importer une sauvegarde</button></div><h3>Mes arbres</h3>
+ <div class=row><button class=pri data-act=newTree>＋ Nouvel arbre</button><button data-act=import>📥 Importer</button></div><h3>Mes arbres</h3>
  ${HOME.length?HOME.map(t=>`<div class=tcard><div><b>${esc(t.name)}</b><br><small>${Object.values(t.persons).filter(p=>!p.del).length} personne(s) · modifié le ${new Date(t.updated).toLocaleDateString('fr-FR')}</small></div><button class=pri data-act=open data-id="${t.id}">Ouvrir</button><button data-act=delTree data-id="${t.id}" title="Supprimer">🗑️</button></div>`).join(''):'<p class=mut>Aucun arbre pour l’instant.</p>'}</div></div>`}
 
 let bnHide=true; // rappel de sauvegarde masqué jusqu'au prochain passage du minuteur (toutes les 10 min, voir démarrage)
@@ -544,23 +544,29 @@ RETROUVER LES FICHIERS A LA MAIN
 Decompresse le ZIP (ordinateur, ou application Fichiers du telephone) et ouvre les dossiers.
 
 STRUCTURE DE arbre.json
-{ "app": "racines", "v": 2, "tree": { "id", "name", "family", "origin", "author", "about", "updated", "persons": { "<id>": { ... } } } }
+{ "app": "racines", "v": 2, "tree": { "id", "name", "family", "origin", "author", "about", "updated", "persons": { "<id>": { ... } } }, "media": { "<empreinte>": { "file", "type", "size" } } }
 Chaque personne : id, first (prenom), last (nom), maiden (nom de jeune fille), gender (genre),
 birth et death (AAAA, AAAA-MM ou AAAA-MM-JJ), birthPlace, deathPlace, alive (true/false),
 job (metier), story (anecdote), storyQ (question de l'anecdote), parents (0 a 2 identifiants),
 partner (identifiant), del (true si supprimee), u (derniere modification, en millisecondes),
-photo et voice (chemin du fichier dans ce ZIP, depuis la racine ; vide s'il n'y en a pas).
+photo et voice (identifiant du media ; vide s'il n'y en a pas).
+Un media est identifie par l'empreinte SHA-256 de son contenu (64 caracteres hexadecimaux).
+La table "media" donne, pour chaque empreinte, le chemin du fichier dans ce ZIP (file), son type (type) et sa taille en octets (size).
+Un fichier renomme ou deplace dans le ZIP reste reconnu : Racines retrouve un media grace a son contenu, jamais a son nom.
 Ces informations suffisent pour reconstruire un arbre dans n'importe quel outil, meme si Racines ne fonctionne plus.
 `;
-async function buildZip(){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(T))),seen=new Map(),dirs=new Set(),files=[];
+const sha=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',b))].map(x=>x.toString(16).padStart(2,'0')).join('');
+async function buildZip(){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(T))),ids=new Map(),media={},dirs=new Set(),files=[];
  for(const p of Object.values(tree.persons)){if(!p.photo&&!p.voice)continue;
   const y=/^\d{4}/.test(p.birth)?p.birth.slice(0,4):'sans-date',base=`${fname(`${p.first} ${p.last}`)}_${y}`,dir=dirs.has(base)?`${base}-${p.id}`:base,d=(p.u?new Date(p.u):new Date()).toISOString().slice(0,10);dirs.add(dir);
   for(const [type,f] of [['photo','photo'],['vocal','voice']]){const u=p[f];if(!u)continue;
-   let path=seen.get(u); // même contenu = un seul fichier
-   if(!path){const mime=u.slice(5,u.indexOf(';'));path=`${dir}/${dir}_${type}_${d}.${EXT[mime]||mime.split('/')[1].replace(/\+.*/,'')}`;seen.set(u,path);files.push([path,new Uint8Array(await(await fetch(u)).arrayBuffer())])}
-   p[f]=path}}
+   let id=ids.get(u);
+   if(!id){const b=new Uint8Array(await(await fetch(u)).arrayBuffer());id=await sha(b);ids.set(u,id);
+    if(!media[id]){const mime=u.slice(5,u.indexOf(';base64')),path=`${dir}/${dir}_${type}_${d}.${EXT[mime.split(';')[0]]||mime.split(';')[0].split('/')[1].replace(/\+.*/,'')}`; // même contenu = un seul fichier
+     media[id]={file:path,type:mime,size:b.length};files.push([path,b])}}
+   p[f]=id}}
  const enc=new TextEncoder();
- return zip([['arbre.json',enc.encode(JSON.stringify({app:'racines',v:2,tree},null,1))],['LISEZ-MOI.txt',enc.encode(README(T,day))],...files])}
+ return zip([['arbre.json',enc.encode(JSON.stringify({app:'racines',v:2,tree,media},null,1))],['LISEZ-MOI.txt',enc.encode(README(T,day))],...files])}
 const zipName=()=>`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.zip`;
 const markExported=()=>{bnHide=true;T.lastExport=now();saveTree(T);render()};
 const CAN_SHARE=(()=>{try{return!!(navigator.canShare&&navigator.canShare({files:[new File([],'a.zip',{type:'application/zip'})]}))}catch{return false}})();
@@ -613,10 +619,34 @@ document.addEventListener('input',e=>{if(e.target.id==='flt'){const v=e.target.v
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'){const o=$$('.ov').pop();if(o){if(o._close)return o._close();o.remove();if(o===liveOv)liveOv=null;if(o===tkOv)tkOv=null;if(o.id==='pop')popId=null}}
  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&T&&hist.length&&!$('.ov:not(#pop)')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo()}});
+/* ---------- import : un seul format, le ZIP exporté par Racines ---------- */
+async function readZip(buf){ // -> Map chemin→Uint8Array ; fichiers stockés ou deflate ; l'intégrité se vérifie par l'empreinte SHA-256 des médias
+ const v=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder(),out=new Map();let e=u8.length-22,tot=0;
+ while(e>=0&&v.getUint32(e,true)!==0x06054b50)e--;if(e<0)throw new Error('zip');
+ const n=v.getUint16(e+10,true);let c=v.getUint32(e+16,true);
+ for(let i=0;i<n;i++){if(v.getUint32(c,true)!==0x02014b50)throw new Error('zip');
+  const meth=v.getUint16(c+10,true),cs=v.getUint32(c+20,true),us=v.getUint32(c+24,true),nl=v.getUint16(c+28,true),xl=v.getUint16(c+30,true),cl=v.getUint16(c+32,true),lo=v.getUint32(c+42,true),name=dec.decode(u8.subarray(c+46,c+46+nl));
+  c+=46+nl+xl+cl;if(name.endsWith('/'))continue;
+  if((tot+=us)>1e9)throw new Error('zip trop gros'); // garde-fou contre une archive piégée
+  const s=lo+30+v.getUint16(lo+26,true)+v.getUint16(lo+28,true);let d=u8.subarray(s,s+cs);
+  if(meth===8)d=new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());else if(meth!==0)throw new Error('zip');
+  out.set(name,d)}
+ return out}
+const toUrl=(b,type)=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>ko(r.error);r.readAsDataURL(new Blob([b],{type}))});
 $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
- try{const o=JSON.parse(await f.text());if(o.app!=='racines'||!o.tree||!o.tree.id)throw 0;const r=norm(o.tree);HOME=await allTrees();const l=HOME.find(t=>t.id===r.id);
+ let o,z;
+ try{z=await readZip(await f.arrayBuffer());const j=z.get('arbre.json');if(!j)throw 0;o=JSON.parse(new TextDecoder().decode(j));if(o.app!=='racines'||o.v!==2||!o.tree||!o.tree.id||typeof o.tree.persons!=='object')throw 0}
+ catch{return toast('Fichier invalide : choisis le ZIP exporté par Racines')}
+ try{const byId=new Map(); // un média se reconnaît à son contenu, jamais à son nom
+  for(const [n,b] of z)if(n!=='arbre.json'&&n!=='LISEZ-MOI.txt')byId.set(await sha(b),b);
+  const ps=Object.values(o.tree.persons),want=new Set(ps.flatMap(p=>[p.photo,p.voice]).filter(Boolean)),miss=[...want].filter(id=>!byId.has(id)).length;
+  if(!confirm(`Cet arbre contient ${ps.filter(p=>!p.del).length} personnes et ${want.size} médias. Importer ?`+(miss?`\n\n⚠️ ${miss} média(s) manquent ou sont abîmés dans ce fichier : ils resteront vides.`:'')))return;
+  HOME=await allTrees();const l=HOME.find(t=>t.id===o.tree.id),meta=o.media||{};
+  for(const p of ps)for(const k of ['photo','voice']){const id=p[k];if(!id)continue;
+   p[k]=byId.has(id)?await toUrl(byId.get(id),String((meta[id]||{}).type||'')):(l&&l.persons[p.id]&&l.persons[p.id][k])||''} // média absent du fichier : on garde celui de l'appareil s'il existe
+  const r=norm(o.tree);
   if(l){mergeTree(l,r);await saveTree(l);toast('Arbre fusionné avec la version existante')}else{await saveTree(r);toast('Arbre importé ✔')}
-  await goHome()}catch{toast('Fichier invalide : ce n’est pas une sauvegarde Racines')}});
+  await goHome()}catch(err){console.error(err);toast('Import impossible : '+err.message)}});
 
 /* ---------- live : WebRTC pair-à-pair via PeerJS (les données ne passent par aucun serveur) ---------- */
 const COLORS=['#e4572e','#17bebb','#d9a600','#76b041','#a05195','#ff7f50'];

@@ -15,37 +15,35 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] Règle de travail : jamais de fusion `dev` → `main` sans test. Passer par une *Pull request* pour voir les changements avant publication.
 - [ ] Les données restent dans le navigateur de chacun, pas dans le dépôt : aucune opération Git ne les efface.
 
-## Priorité 2 : Stockage et sauvegarde
+## Priorité 2 : Stockage, sauvegarde et accueil
 
 - [ ] **⚠️ Stockage persistant** : demander au navigateur de ne pas effacer les données (déjà prévu dans le code, à vérifier).
-- [ ] **Avertissement iPhone** : Safari peut effacer les données d'un site non utilisé pendant 7 jours. Recommander d'installer l'appli sur l'écran d'accueil (voir idée 13 dans New features).
-- [ ] **Rappel de sauvegarde toutes les 10 minutes**, seulement s'il y a des modifications non exportées. Pas de rappel pendant qu'on écrit. Un bouton « Exporter maintenant » lance l'export.
+- [ ] **Avertissement iPhone** : Safari peut effacer les données d'un site non utilisé pendant 7 jours. Recommander d'installer l'appli sur l'écran d'accueil (voir « Mode hors-ligne installable » dans New features).
+- [ ] **Message d'accueil** à chaque arrivée sur le site : une phrase de bienvenue, avec en petit : « Si vous êtes en navigation privée, vos données ne seront pas conservées. Utilisez un navigateur normal. »
+- [ ] **Détection de la navigation privée** : quand c'est possible, un avertissement bien visible remplace la phrase de bienvenue. La détection n'est pas fiable sur tous les navigateurs : la phrase reste donc toujours affichée.
+- [ ] **Rappel de sauvegarde toutes les 10 minutes**, seulement s'il y a des modifications non exportées. Pas de rappel pendant qu'on écrit. Un bouton « Exporter tout l'arbre » lance l'export.
 - [ ] Le rappel ne sauvegarde jamais tout seul : le téléchargement est toujours déclenché manuellement par la personne.
 - [ ] **Limite connue** : sur téléphone, un export crée un nouveau fichier. L'ancien doit être supprimé à la main. Sur Chrome d'ordinateur, il est possible d'écraser le fichier existant (à décider).
 - [ ] **Pas de sauvegarde automatique dans la galerie.** Le risque vient des services de sauvegarde du téléphone (Google Photos, iCloud), pas de l'appli.
 
-## Priorité 3 : Deux exports distincts
+## Priorité 3 : Export « Exporter tout l'arbre »
 
-### Export « Sauvegarde de l'arbre » (bouton par défaut)
+Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », au même endroit sur tous les appareils.
 
-- [ ] Un seul fichier ZIP, complet : données **et** médias. Pas de version légère.
-- [ ] Contenu : `arbre.json` (toutes les données) à la racine, plus un dossier par personne contenant ses médias. Chaque média n'est présent qu'une seule fois.
-- [ ] Un fichier `LISEZ-MOI.txt` explique la structure, pour pouvoir reconstruire une appli même si Racines ne fonctionne plus.
-- [ ] Le fichier pèse presque autant que l'export « Médias pour albums », car les médias sont les mêmes fichiers. Seul `arbre.json` s'ajoute (quelques dizaines à quelques centaines de Ko).
-- [ ] Vérifier la taille acceptée par le partage (WhatsApp, Mail) avant d'activer « Partager la sauvegarde » (à tester).
-
-### Export « Médias pour albums »
-
-- [ ] Un ZIP contenant uniquement les médias, rangés par personne, sans données ni `arbre.json`.
-- [ ] Objectif : voir les photos, écouter les vocaux et regarder les vidéos dans la galerie ou sur l'ordinateur, sans l'appli.
+- [ ] Un fichier ZIP unique, contenant les données **et** tous les médias.
+- [ ] Contenu : `arbre.json` (toutes les données) à la racine, plus un dossier par personne, contenant ses médias. Chaque média n'est présent qu'une seule fois.
 - [ ] Noms de fichiers explicites : `Jean-Dupont_1952_souvenir_2026-10-16.mp4` (qui, année de naissance, type, date d'enregistrement).
+- [ ] Un fichier `LISEZ-MOI.txt` explique la structure, pour pouvoir reconstruire une appli même si Racines ne fonctionne plus.
+- [ ] Le ZIP sert à deux choses : réimporter l'arbre dans l'appli (sur n'importe quel navigateur), et retrouver les fichiers à la main dans la galerie ou sur l'ordinateur.
+- [ ] **Avertissement à l'export** si des médias manquent sur cet appareil.
+- [ ] Vérifier la taille acceptée par le partage (WhatsApp, Mail) avant d'activer « Partager la sauvegarde » (à tester).
 
 ## Priorité 4 : Import de l'arbre
 
 - [ ] **Import en deux gestes** seulement : « 📥 Importer » puis choix du fichier. Simple pour les personnes peu à l'aise avec le numérique.
-- [ ] **Détection automatique** du format : ZIP complet ou ancien `.json`, sans que la personne ait à choisir.
+- [ ] **Détection automatique** du format : ZIP exporté ou ancien `.json`, sans que la personne ait à choisir.
 - [ ] **Message de confirmation avant import** : « Cet arbre contient N personnes et M médias. Importer ? »
-- [ ] **Import des médias sans relecture inutile** : pour chaque média, si son empreinte est déjà présente dans le navigateur, il n'est ni relu ni réécrit.
+- [ ] **Import des médias sans relecture inutile** : pour chaque média, si son empreinte est déjà présente dans le navigateur (y compris un doublon, c'est-à-dire un fichier au contenu identique), il n'est ni relu ni réécrit.
 - [ ] **Vérification d'intégrité** : à l'import, l'empreinte de chaque fichier est recalculée pour s'assurer qu'il n'est pas corrompu.
 - [ ] Les noms de fichiers ne servent pas à identifier un média : un fichier renommé dans le ZIP reste reconnu grâce à son empreinte.
 
@@ -54,41 +52,46 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] Stocker chaque vocal, vidéo et photo comme un fichier à part, avec un identifiant.
 - [ ] **Identifiant = empreinte SHA-256 du contenu.** Même contenu = même identifiant. Contenu modifié = nouvel identifiant.
 - [ ] La fiche ne garde que les identifiants des médias (les modifications de texte redeviennent légères).
-- [ ] **Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil.
+- [ ] **Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil. Exception pendant la session : un média supprimé reste disponible jusqu'à la fin de la session, pour pouvoir être restauré par Ctrl+Z.
 - [ ] **⚠️ Média supprimé puis annulé** : il doit rester présent sur l'appareil jusqu'à la fin de la session, puis être supprimé. Si l'annulation est impossible après la session, il n'est pas restauré.
 - [ ] **⚠️ Média modifié hors de l'appli** (recadré, retouché, ou simplement réenregistré dans un logiciel) : l'empreinte change, donc le fichier n'est plus reconnu. Pour changer un média, passer par l'appli.
 
-## Priorité 6 : Live et téléchargement des médias
+## Priorité 6 : Live et récupération des médias
 
 - [ ] À l'arrivée d'un proche, n'envoyer que la structure et les textes, jamais les médias.
 - [ ] **Deux types de transferts, avec des noms distincts dans l'interface** :
   - « Récupérer sur cet appareil » : stockage dans le navigateur, pour utiliser l'appli. Rien n'apparaît dans la galerie.
   - « Enregistrer dans la galerie » : création d'un fichier, visible dans la galerie ou le dossier de l'ordinateur.
-- [ ] **Téléchargement à la demande** : quand on ouvre une fiche, ses médias sont récupérés. Petits fichiers (vocal, photo) automatiquement ; vidéo après confirmation, avec sa taille affichée (ex. « Récupérer cette vidéo de 18 Mo ? »).
-- [ ] **Indicateur des médias manquants** : une pastille sur la personne, et sur la zone concernée dans la fiche (vocal, photo…).
+- [ ] **Indicateur des médias manquants ou différents** : une pastille sur la personne, et sur chaque zone concernée dans sa fiche (photo, vocal, vidéo…).
+- [ ] **Dans chaque zone d'une fiche**, un bouton « Récupérer » permet de récupérer ce média précisément, sans passer par « Tout récupérer ».
 - [ ] **Bouton « Tout récupérer »** dans la session, avec l'avancement (ex. « 120 / 300 médias »). La personne peut faire autre chose pendant le transfert.
 - [ ] **Avertissement en quittant** s'il reste des médias non récupérés : « Tu n'as pas tous les médias. Tu ne verras pas tout hors session. Tout récupérer maintenant ? »
-- [ ] **Avertissement à l'export** si des médias manquent sur cet appareil.
 - [ ] Une fois reçu, un média reste sur l'appareil : pas de nouveau transfert.
 - [ ] **Reprise d'un transfert interrompu** : chaque média est reçu par morceaux, et les morceaux déjà reçus sont gardés.
 - [ ] **⚠️ Média modifié ou supprimé pendant son transfert** : prévenir la personne, abandonner les morceaux de l'ancienne version, puis reprendre avec la nouvelle version. Les médias déjà complets ne sont pas retéléchargés.
 - [ ] Le compteur « il reste N médias » ne compte que les médias actuellement référencés et absents de l'appareil. Un média remplacé n'y apparaît jamais.
 - [ ] **Côté hôte** : un média remplacé reste disponible le temps des transferts en cours. Si un transfert échoue à cause d'un remplacement, afficher « ce média a été remplacé » et recharger la liste.
-- [ ] **Média non reconnu à l'arrivée** : il est proposé comme ajout dans les tickets, à valider par l'hôte, même s'il s'agit d'un doublon. Pas de conflit silencieux.
 
 ## Priorité 6 bis : Règles d'arrivée et de modification en session
 
 **Règle d'or** : seules les différences apportées par une personne qui arrive avec un arbre différent passent par la validation de l'hôte. Les modifications faites en direct par les éditeurs autorisés sont appliquées immédiatement, sans validation, et ne peuvent pas être refusées.
 
-- [ ] **À l'arrivée, notification à l'invité** : « Il vous manque N médias. Voulez-vous les récupérer ? » (oui / non).
-- [ ] **⚠️ Cette proposition ne concerne que les médias absents de la version de l'hôte.** Les médias que l'arrivant a ajoutés ou modifiés de son côté ne lui sont jamais proposés : ils restent sur son appareil et deviennent des tickets.
-- [ ] **Côté hôte** : une notification en haut, avec le nombre de modifications, ajouts et suppressions reçus. Seul l'hôte peut les valider ou les refuser.
-- [ ] **⚠️ Validation par l'hôte uniquement** : ✅ et ❌ ne sont accessibles que pour l'hôte, avec confirmation à chaque décision.
-- [ ] **Sauvegarde avant arrivée** : l'arrivant qui voit son arbre remplacé par celui de l'hôte garde sa version dans « Mes arbres » (« avant fusion »). Ses modifications ne sont récupérables qu'à partir de cette copie si l'hôte refuse.
-- [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »
+**Arrivée d'un invité**
+- [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
 - [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
+- [ ] **Notification à l'arrivée** : « N médias sont absents ou différents de l'arbre de l'hôte. Voulez-vous tout récupérer ? » Oui ou non.
+- [ ] **Si oui** : tous les médias absents ou différents sont récupérés.
+- [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante ou différente, un bouton « Récupérer ».
+- [ ] **⚠️ Les médias de l'invité lui-même ne sont jamais proposés** : ses propres photos, vidéos ou vocaux modifiés ou ajoutés restent sur son appareil et deviennent des tickets.
 - [ ] **Après avoir quitté une session**, l'arbre personnel contient la dernière version reçue de la session, y compris les modifications des éditeurs. Il n'y a pas de retour automatique à la version d'avant.
-- [ ] La copie « avant fusion » créée automatiquement ne se crée que s'il y a des différences à valider. Elle ne remplace pas la sauvegarde volontaire, et ne doit pas être présentée comme une garantie.
+
+**Côté hôte**
+- [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »
+- [ ] **Notification en haut** avec le nombre de modifications, ajouts et suppressions reçus.
+- [ ] **⚠️ Validation par l'hôte uniquement** : ✅ et ❌ ne sont accessibles que pour l'hôte, avec confirmation à chaque décision.
+- [ ] **Une fiche peut être acceptée avec un média manquant.** Le média reste sur l'appareil de l'invité, et la fiche affiche « média manquant » tant que personne ne l'a reçu.
+
+**Retour en arrière**
 - [ ] **Retour en arrière par personne** : chaque personne ne peut annuler que ses propres actions (Ctrl+Z). Il n'existe pas d'annulation de l'arbre général.
 - [ ] Les modifications d'un éditeur autorisé en direct ne passent jamais par les tickets. Elles sont appliquées telles quelles.
 
@@ -99,6 +102,7 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] **Vidéo modifiée** : une miniature (une image tirée de la vidéo) est créée à l'enregistrement ou à l'import, et stockée avec le média. Elle pèse environ 20 à 30 Ko. Elle permet de comparer sans télécharger la vidéo.
 - [ ] La vidéo complète ne se récupère que sur demande, quand l'hôte clique pour la visionner.
 - [ ] Les médias du ticket restent sur l'appareil de l'invité : l'hôte les récupère à l'ouverture du ticket. L'hôte doit donc être connecté à l'invité pour voir le nouveau média.
+- [ ] **Validation possible même si le média n'est pas disponible** : la fiche est acceptée avec un média « manquant », jusqu'à ce qu'il soit reçu.
 - [ ] Les miniatures sont ajoutées à `arbre.json` pour être disponibles hors session.
 
 ## Priorité 8 : Formats des médias

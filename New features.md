@@ -37,5 +37,4 @@ Objectif : que les futures générations n'oublient pas leurs prédécesseurs et
 11. **Badges de complétion** : une jauge par personne (photo, date, vocal, anecdote…) qui encourage à compléter les fiches.
 
 **Technique**
-12. **Sauvegarde automatique du fichier** : copie régulière, pour ne pas perdre les données si le navigateur est vidé.
-13. **Mode hors-ligne installable** (PWA) : fonctionne sans connexion et s'installe comme une application sur le téléphone.
+12. **Mode hors-ligne installable** (PWA) : fonctionne sans connexion et s'installe comme une application sur le téléphone.

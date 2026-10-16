@@ -470,7 +470,7 @@ function homeView(){return`<div class="scroll"><div class=home><h1>🌳 Racines<
 let bnHide=true; // rappel de sauvegarde masqué jusqu'au prochain passage du minuteur (toutes les 10 min, voir démarrage)
 function render(){
  const nT=T&&T.tickets?T.tickets.length:0;
- $('#hd').innerHTML=`<b class=logo data-act=home title="Mes arbres">🌳<span class=lb> Racines</span></b>`+(T?`<span class=tname>${esc(T.name)}</span>${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️<span class=lb> Annuler</span></button>`:''}${rank()>=1?'<button class=pri data-act=add title="Ajouter une personne">＋<span class=lb> Personne</span></button>':''}${nT&&rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets title="Nouvelles entrées à valider">🎫<span class=badge>${nT}</span></button>`:''}<button data-act=live title="Session live">${live.peer?'🔴':'📡'}<span class=lb> Live</span>${live.peer?' '+Object.keys(live.peers).length:''}</button><span class=mw><button data-act=menu title="Menu">⋯</button><div id=mnu>${rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets>🎫 Nouvelles entrées (${nT})</button>`:''}<button data-act=export>💾 Exporter la sauvegarde</button>${rank()>=2?'<button data-act=settings>⚙️ Infos de l’arbre</button>':''}<button data-act=home>🗂️ Mes arbres</button><small class=mut>Ton rôle : ${ROLE_LABEL[myRole()]}</small></div></span>`:`<span class=sp></span><button data-act=live>📡<span class=lb> Session live</span></button>`);
+ $('#hd').innerHTML=`<b class=logo data-act=home title="Mes arbres">🌳<span class=lb> Racines</span></b>`+(T?`<span class=tname>${esc(T.name)}</span>${rank()>=1&&hist.length?`<button data-act=undo title="Annuler : ${esc(hist[hist.length-1].label)} (Ctrl+Z)">↩️<span class=lb> Annuler</span></button>`:''}${rank()>=1?'<button class=pri data-act=add title="Ajouter une personne">＋<span class=lb> Personne</span></button>':''}${nT&&rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets title="Nouvelles entrées à valider">🎫<span class=badge>${nT}</span></button>`:''}<button data-act=live title="Session live">${live.peer?'🔴':'📡'}<span class=lb> Live</span>${live.peer?' '+Object.keys(live.peers).length:''}</button><span class=mw><button data-act=menu title="Menu">⋯</button><div id=mnu>${rank()>=2&&!(live.peer&&!live.host)?`<button data-act=tickets>🎫 Nouvelles entrées (${nT})</button>`:''}<button data-act=export>💾 Exporter tout l’arbre</button>${CAN_SHARE?'<button data-act=share>📤 Partager la sauvegarde</button>':''}${rank()>=2?'<button data-act=settings>⚙️ Infos de l’arbre</button>':''}<button data-act=home>🗂️ Mes arbres</button><small class=mut>Ton rôle : ${ROLE_LABEL[myRole()]}</small></div></span>`:`<span class=sp></span><button data-act=live>📡<span class=lb> Session live</span></button>`);
  $('#nv').innerHTML=T?VIEWS.map(([k,l])=>`<button data-act=view data-v=${k} class="${view===k?'on':''}"><span class=ic>${l.split(' ')[0]}</span><span class=tl>${l.split(' ').slice(1).join(' ')}</span></button>`).join(''):'';
  const mn=$('#mn'),bn=$('#bn');
  if(!T){popId=null;popup();bn.innerHTML='';mn.innerHTML=homeView();return}
@@ -511,6 +511,59 @@ function ticketsUI(open){
 
 /* ---------- actions ---------- */
 async function goHome(){HOME=await allTrees();T=null;hist=[];sel=null;render()}
+/* ---------- export : un ZIP unique (arbre.json + un dossier par personne + LISEZ-MOI.txt) ---------- */
+const crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=-1;for(let i=0;i<b.length;i++)c=crcT[(c^b[i])&255]^(c>>>8);return(c^-1)>>>0};
+function zip(files){ // files:[[chemin,Uint8Array]] ; stockage sans compression (photos et sons sont déjà compressés) ; ponytail: pas de ZIP64, plafond 4 Go / 65535 fichiers
+ const enc=new TextEncoder(),d=new Date(),dt=(d.getFullYear()-1980)<<9|(d.getMonth()+1)<<5|d.getDate(),tm=d.getHours()<<11|d.getMinutes()<<5|d.getSeconds()>>1,parts=[],cen=[];let off=0;
+ for(const [n,b] of files){const nb=enc.encode(n),c=crc32(b),h=new DataView(new ArrayBuffer(30)),g=new DataView(new ArrayBuffer(46));
+  h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x800,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);h.setUint32(14,c,true);h.setUint32(18,b.length,true);h.setUint32(22,b.length,true);h.setUint16(26,nb.length,true);
+  g.setUint32(0,0x02014b50,true);g.setUint16(4,20,true);g.setUint16(6,20,true);g.setUint16(8,0x800,true);g.setUint16(12,tm,true);g.setUint16(14,dt,true);g.setUint32(16,c,true);g.setUint32(20,b.length,true);g.setUint32(24,b.length,true);g.setUint16(28,nb.length,true);g.setUint32(42,off,true);
+  parts.push(h,nb,b);cen.push(g,nb);off+=30+nb.length+b.length}
+ const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cen.reduce((s,x)=>s+x.byteLength,0),true);e.setUint32(16,off,true);
+ return new Blob([...parts,...cen,e],{type:'application/zip'})}
+const fname=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')||'Sans-nom';
+const EXT={'image/jpeg':'jpg','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/mpeg':'mp3','audio/ogg':'ogg','audio/webm':'webm'};
+const README=(t,day)=>`RACINES - SAUVEGARDE D'UN ARBRE GENEALOGIQUE
+Arbre : ${t.name}
+Exporte le : ${day}
+
+Ce fichier ZIP contient tout l'arbre : les donnees ET les medias (photos, vocaux).
+
+CONTENU
+- arbre.json : toutes les donnees de l'arbre (personnes, liens de parente, dates, lieux, anecdotes).
+- Un dossier par personne, nomme "Prenom-Nom_anneeDeNaissance", qui contient ses medias.
+  Les fichiers sont nommes "Prenom-Nom_annee_type_date.extension" :
+  type = photo ou vocal ; date = derniere modification de la fiche.
+- Chaque media n'existe qu'une seule fois dans le ZIP.
+
+REIMPORTER L'ARBRE
+Dans Racines, bouton Importer, puis choisir ce fichier ZIP tel quel (sans le decompresser).
+
+RETROUVER LES FICHIERS A LA MAIN
+Decompresse le ZIP (ordinateur, ou application Fichiers du telephone) et ouvre les dossiers.
+
+STRUCTURE DE arbre.json
+{ "app": "racines", "v": 2, "tree": { "id", "name", "family", "origin", "author", "about", "updated", "persons": { "<id>": { ... } } } }
+Chaque personne : id, first (prenom), last (nom), maiden (nom de jeune fille), gender (genre),
+birth et death (AAAA, AAAA-MM ou AAAA-MM-JJ), birthPlace, deathPlace, alive (true/false),
+job (metier), story (anecdote), storyQ (question de l'anecdote), parents (0 a 2 identifiants),
+partner (identifiant), del (true si supprimee), u (derniere modification, en millisecondes),
+photo et voice (chemin du fichier dans ce ZIP, depuis la racine ; vide s'il n'y en a pas).
+Ces informations suffisent pour reconstruire un arbre dans n'importe quel outil, meme si Racines ne fonctionne plus.
+`;
+async function buildZip(){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(T))),seen=new Map(),dirs=new Set(),files=[];
+ for(const p of Object.values(tree.persons)){if(!p.photo&&!p.voice)continue;
+  const y=/^\d{4}/.test(p.birth)?p.birth.slice(0,4):'sans-date',base=`${fname(`${p.first} ${p.last}`)}_${y}`,dir=dirs.has(base)?`${base}-${p.id}`:base,d=(p.u?new Date(p.u):new Date()).toISOString().slice(0,10);dirs.add(dir);
+  for(const [type,f] of [['photo','photo'],['vocal','voice']]){const u=p[f];if(!u)continue;
+   let path=seen.get(u); // même contenu = un seul fichier
+   if(!path){const mime=u.slice(5,u.indexOf(';'));path=`${dir}/${dir}_${type}_${d}.${EXT[mime]||mime.split('/')[1].replace(/\+.*/,'')}`;seen.set(u,path);files.push([path,new Uint8Array(await(await fetch(u)).arrayBuffer())])}
+   p[f]=path}}
+ const enc=new TextEncoder();
+ return zip([['arbre.json',enc.encode(JSON.stringify({app:'racines',v:2,tree},null,1))],['LISEZ-MOI.txt',enc.encode(README(T,day))],...files])}
+const zipName=()=>`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.zip`;
+const markExported=()=>{bnHide=true;T.lastExport=now();saveTree(T);render()};
+const CAN_SHARE=(()=>{try{return!!(navigator.canShare&&navigator.canShare({files:[new File([],'a.zip',{type:'application/zip'})]}))}catch{return false}})();
 const ACT={
  home:goHome,
  open({id}){T=norm(HOME.find(t=>t.id===id));hist=[];sel=null;cam=null;view='tree';render()},
@@ -518,7 +571,8 @@ const ACT={
  newTree(){treeWizard({name:'',family:'',origin:'',author:ME.name,about:''})},
  settings(){treeWizard({name:T.name,family:T.family,origin:T.origin,author:T.author,about:T.about},true)},
  import(){$('#imp').click()},
- export(){bnHide=true;T.lastExport=now();saveTree(T);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'racines',v:1,tree:wire(T)})],{type:'application/json'}));a.download=`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.racines.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('💾 Sauvegarde exportée'+(matchMedia('(pointer:coarse)').matches?' — supprime l’ancien fichier à la main':''));render()},
+ async export(){try{const a=document.createElement('a');a.href=URL.createObjectURL(await buildZip());a.download=zipName();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);markExported();toast('💾 Arbre exporté'+(matchMedia('(pointer:coarse)').matches?' — supprime l’ancien fichier à la main':''))}catch(e){toast('Export impossible : '+e.message)}},
+ async share(){try{await navigator.share({files:[new File([await buildZip()],zipName(),{type:'application/zip'})],title:T.name});markExported()}catch(e){if(e.name!=='AbortError')toast('Partage impossible : utilise « Exporter tout l’arbre »')}}, // ponytail: taille max acceptée par WhatsApp/Mail à tester sur téléphone
  view({v}){view=v;render()},
  add(){openPerson()},
  select({id}){sel=popId=id||null;presence();render()},

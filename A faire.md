@@ -8,12 +8,12 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 
 ## Priorité 1 : Environnement de test (avant toute nouvelle fonctionnalité)
 
-- [ ] Branche `dev` publiée à l'adresse `/dev/` du même dépôt, avec un bandeau « VERSION TEST ».
-- [ ] **⚠️ Stockage séparé entre `main` et `dev`** : base de données et clés de réglages distinctes, pour que les tests ne touchent jamais aux arbres réels. (Même domaine, donc sans cette séparation les données seraient partagées.)
-- [ ] Script GitHub Actions qui publie `main` à la racine et `dev` dans `/dev/`.
-- [ ] Réglage manuel dans GitHub : *Settings → Pages → Source : GitHub Actions* (à faire une seule fois, par toi).
-- [ ] Règle de travail : jamais de fusion `dev` → `main` sans test. Passer par une *Pull request* pour voir les changements avant publication.
-- [ ] Les données restent dans le navigateur de chacun, pas dans le dépôt : aucune opération Git ne les efface.
+- [x] Branche `dev` publiée à l'adresse `/dev/` du même dépôt, avec un bandeau « VERSION TEST ».
+- [x] **⚠️ Stockage séparé entre `main` et `dev`** : base de données et clés de réglages distinctes, pour que les tests ne touchent jamais aux arbres réels. (Même domaine, donc sans cette séparation les données seraient partagées.)
+- [x] Script GitHub Actions qui publie `main` à la racine et `dev` dans `/dev/`.
+- [x] Réglage manuel dans GitHub : *Settings → Pages → Source : GitHub Actions* (à faire une seule fois, par toi).
+- [x] Règle de travail : jamais de fusion `dev` → `main` sans test. Passer par une *Pull request* pour voir les changements avant publication.
+- [x] Les données restent dans le navigateur de chacun, pas dans le dépôt : aucune opération Git ne les efface.
 
 ## Priorité 2 : Stockage, sauvegarde et accueil
 

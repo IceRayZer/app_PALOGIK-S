@@ -19,11 +19,10 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 
 - [ ] **⚠️ Stockage persistant** : demander au navigateur de ne pas effacer les données (déjà prévu dans le code, à vérifier).
 - [ ] **Avertissement iPhone** : Safari peut effacer les données d'un site non utilisé pendant 7 jours. Recommander d'installer l'appli sur l'écran d'accueil (voir « Mode hors-ligne installable » dans New features).
-- [ ] **Message d'accueil** à chaque arrivée sur le site : une phrase de bienvenue, avec en petit : « Si vous êtes en navigation privée, vos données ne seront pas conservées. Utilisez un navigateur normal. »
-- [ ] **Détection de la navigation privée** : quand c'est possible, un avertissement bien visible remplace la phrase de bienvenue. La détection n'est pas fiable sur tous les navigateurs : la phrase reste donc toujours affichée.
+- [ ] **Pop-up de bienvenue** à chaque arrivée sur le site : « Bienvenue dans Racines ! », suivi d'une seule phrase de présentation. En bas, en plus petit : « Si vous êtes en navigation privée, les informations et données ne seront pas sauvegardées. Il est donc préférable d'utiliser un navigateur classique. »
 - [ ] **Rappel de sauvegarde toutes les 10 minutes**, seulement s'il y a des modifications non exportées. Pas de rappel pendant qu'on écrit. Un bouton « Exporter tout l'arbre » lance l'export.
 - [ ] Le rappel ne sauvegarde jamais tout seul : le téléchargement est toujours déclenché manuellement par la personne.
-- [ ] **Limite connue** : sur téléphone, un export crée un nouveau fichier. L'ancien doit être supprimé à la main. Sur Chrome d'ordinateur, il est possible d'écraser le fichier existant (à décider).
+- [ ] **Limite connue** : sur téléphone, un export crée un nouveau fichier. L'ancien doit être supprimé à la main.
 - [ ] **Pas de sauvegarde automatique dans la galerie.** Le risque vient des services de sauvegarde du téléphone (Google Photos, iCloud), pas de l'appli.
 
 ## Priorité 3 : Export « Exporter tout l'arbre »
@@ -53,8 +52,8 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] Stocker chaque vocal, vidéo et photo comme un fichier à part, avec un identifiant.
 - [ ] **Identifiant = empreinte SHA-256 du contenu.** Même contenu = même identifiant. Contenu modifié = nouvel identifiant.
 - [ ] La fiche ne garde que les identifiants des médias (les modifications de texte redeviennent légères).
-- [ ] **Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil. Exception pendant la session : un média supprimé reste disponible jusqu'à la fin de la session, pour pouvoir être restauré par Ctrl+Z.
-- [ ] **⚠️ Média supprimé puis annulé** : il doit rester présent sur l'appareil jusqu'à la fin de la session, puis être supprimé. Si l'annulation est impossible après la session, il n'est pas restauré.
+- [ ] **Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil.
+- [ ] **⚠️ Média supprimé** : il reste disponible pendant la session, pour pouvoir être restauré. Seulement pendant la session : à la fin, il est supprimé.
 - [ ] **⚠️ Média modifié hors de l'appli** (recadré, retouché, ou simplement réenregistré dans un logiciel) : l'empreinte change, donc le fichier n'est plus reconnu. Pour changer un média, passer par l'appli.
 
 ## Priorité 6 : Live et récupération des médias
@@ -78,7 +77,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 **Règle d'or** : seules les différences apportées par une personne qui arrive avec un arbre différent passent par la validation de l'hôte. Les modifications faites en direct par les éditeurs autorisés sont appliquées immédiatement, sans validation, et ne peuvent pas être refusées.
 
 **Arrivée d'un invité**
-- [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Le code actuel écrit encore « avant fusion » : à renommer. Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
+- [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
 - [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
 - [ ] **Notification à l'arrivée** : « Il manque N médias à ton arbre. Voulez-vous tout récupérer ? » Oui ou non. Le nombre est un total : la liste détaillée n'est pas affichée.
 - [ ] **Si oui** : tous les médias absents de son arbre sont récupérés. Les médias propres à l'invité ne sont jamais remplacés.
@@ -91,7 +90,6 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »
 - [ ] **Notification en haut** avec le nombre de modifications, ajouts et suppressions reçus.
 - [ ] **⚠️ Validation par l'hôte uniquement** : ✅ et ❌ ne sont accessibles que pour l'hôte, avec confirmation à chaque décision.
-- [ ] **Une fiche peut être acceptée avec un média manquant.** Le média reste sur l'appareil de l'invité, et la fiche affiche « média manquant » tant que personne ne l'a reçu.
 
 **Retour en arrière**
 - [ ] **Retour en arrière par personne** : chaque personne ne peut annuler que ses propres actions (Ctrl+Z). Il n'existe pas d'annulation de l'arbre général.

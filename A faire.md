@@ -48,6 +48,15 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] Le compteur « il reste N médias » ne compte que les médias actuellement référencés et absents de l'appareil. Un média remplacé n'y apparaît jamais.
 - [ ] **Côté hôte** : un média remplacé reste disponible le temps des téléchargements en cours. Si un téléchargement échoue à cause d'un remplacement, afficher « ce média a été remplacé » et recharger la liste.
 
+## Priorité 4 bis : Validation des tickets avec aperçu des médias
+
+- [ ] **Photo modifiée** : afficher l'ancienne et la nouvelle côte à côte, ou avec un curseur avant/après. Pas de comparaison pixel par pixel, pour éviter les calculs lourds.
+- [ ] **Photo ajoutée ou supprimée** : affichage en rose (ajouté) ou en rouge transparent (supprimé), comme les autres données.
+- [ ] **Vidéo modifiée** : une miniature (une image tirée de la vidéo) est créée à l'enregistrement ou à l'import, et stockée avec le média. Elle pèse environ 20 à 30 Ko. Elle permet de comparer sans télécharger la vidéo.
+- [ ] La vidéo complète ne se récupère que sur demande, quand l'hôte clique pour la visionner.
+- [ ] Les médias du ticket restent sur l'appareil de l'invité : l'hôte les récupère à l'ouverture du ticket. L'hôte doit donc être connecté à l'invité pour voir le nouveau média.
+- [ ] Les miniatures sont ajoutées à `arbre.json` pour être disponibles hors session.
+
 ## Priorité 5 : Formats des médias
 
 - [ ] **Son** : AAC dans un fichier `.m4a`, mono, 48 kbit/s (environ 180 Ko par minute). Lu partout.

@@ -59,11 +59,11 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 ## Priorité 6 : Live et récupération des médias
 
 - [ ] À l'arrivée d'un proche, n'envoyer que la structure et les textes, jamais les médias.
-- [ ] **Deux types de transferts, avec des noms distincts dans l'interface** :
-  - « Récupérer sur cet appareil » : stockage dans le navigateur, pour utiliser l'appli. Rien n'apparaît dans la galerie.
-  - « Enregistrer dans la galerie » : création d'un fichier, visible dans la galerie ou le dossier de l'ordinateur.
-- [ ] **Indicateur des médias manquants ou différents** : une pastille sur la personne, et sur chaque zone concernée dans sa fiche (photo, vocal, vidéo…).
-- [ ] **Dans chaque zone d'une fiche**, un bouton « Récupérer » permet de récupérer ce média précisément, sans passer par « Tout récupérer ».
+- [ ] **Deux actions distinctes, avec des icônes différentes** :
+  - « ⬇️ Récupérer sur mon arbre » : le média est stocké dans le navigateur, pour utiliser l'appli. Rien n'apparaît dans la galerie.
+  - « 💾 Exporter ce média » : crée un fichier visible dans la galerie ou le dossier de l'ordinateur. Ce n'est jamais nécessaire pour utiliser l'appli.
+- [ ] **Indicateur des médias absents de l'arbre** : une pastille sur la personne, et sur chaque zone concernée dans sa fiche (photo, vocal, vidéo…). Un média dont l'empreinte est déjà présente n'est jamais signalé.
+- [ ] **Dans chaque zone d'une fiche**, un bouton « ⬇️ Récupérer sur mon arbre » permet de récupérer ce média précisément, sans passer par « Tout récupérer ».
 - [ ] **Bouton « Tout récupérer »** dans la session, avec l'avancement (ex. « 120 / 300 médias »). La personne peut faire autre chose pendant le transfert.
 - [ ] **Avertissement en quittant** s'il reste des médias non récupérés : « Tu n'as pas tous les médias. Tu ne verras pas tout hors session. Tout récupérer maintenant ? »
 - [ ] Une fois reçu, un média reste sur l'appareil : pas de nouveau transfert.
@@ -79,9 +79,10 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 **Arrivée d'un invité**
 - [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
 - [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
-- [ ] **Notification à l'arrivée** : « N médias sont absents ou différents de l'arbre de l'hôte. Voulez-vous tout récupérer ? » Oui ou non.
+- [ ] **Notification à l'arrivée** : « Il manque N médias à ton arbre. Voulez-vous tout récupérer ? » Oui ou non. Le nombre est un total : la liste détaillée n'est pas affichée.
 - [ ] **Si oui** : tous les médias absents ou différents sont récupérés.
-- [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante ou différente, un bouton « Récupérer ».
+- [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante, un bouton « ⬇️ Récupérer sur mon arbre ». Il s'agit de télécharger dans son arbre, pas d'exporter.
+- [ ] **Médias identiques** : un média qui a la même empreinte que celui de l'hôte n'est jamais signalé, ni dans la notification, ni comme modification, ni dans les tickets. Il n'est pas à télécharger.
 - [ ] **⚠️ Les médias de l'invité lui-même ne sont jamais proposés** : ses propres photos, vidéos ou vocaux modifiés ou ajoutés restent sur son appareil et deviennent des tickets.
 - [ ] **Après avoir quitté une session**, l'arbre personnel contient la dernière version reçue de la session, y compris les modifications des éditeurs. Il n'y a pas de retour automatique à la version d'avant.
 
@@ -104,6 +105,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] Les médias du ticket restent sur l'appareil de l'invité : l'hôte les récupère à l'ouverture du ticket. L'hôte doit donc être connecté à l'invité pour voir le nouveau média.
 - [ ] **Validation possible même si le média n'est pas disponible** : la fiche est acceptée avec un média « manquant », jusqu'à ce qu'il soit reçu.
 - [ ] Les miniatures sont ajoutées à `arbre.json` pour être disponibles hors session.
+- [ ] Un média identique (même empreinte) n'apparaît jamais dans un ticket.
 
 ## Priorité 8 : Formats des médias
 
@@ -114,7 +116,8 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 
 ## Priorité 9 : Enregistrer un média dans la galerie
 
-- [ ] **Bouton « 💾 Enregistrer » sur chaque média** : sur téléphone, ouvre le menu de partage natif (« Enregistrer la vidéo » sur iPhone, ou téléchargement sur Android) ; sur ordinateur, téléchargement dans le dossier Téléchargements.
+- [ ] **Bouton « 💾 Exporter ce média » sur chaque média** : crée un fichier du média sur lequel on a cliqué, et non de l'arbre entier. Sur téléphone, ouvre le menu de partage natif (« Enregistrer la vidéo » sur iPhone, ou téléchargement sur Android) ; sur ordinateur, téléchargement dans le dossier Téléchargements.
+- [ ] **Distinction des icônes** : ⬇️ Récupérer sur mon arbre (stockage du navigateur, pour utiliser l'appli) et 💾 Exporter ce média (fichier, pour la galerie). Les deux ne doivent jamais être confondus dans l'interface.
 - [ ] Le téléchargement en dur est **toujours manuel**, jamais automatique.
 - [ ] Signaler dans l'appli que les fichiers enregistrés dans la galerie peuvent être envoyés vers le cloud par les services du téléphone.
 

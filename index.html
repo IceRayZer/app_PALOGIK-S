@@ -145,14 +145,15 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const rid=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
 const now=()=>Date.now();
 const pick=(a,not)=>{let x;do x=a[Math.random()*a.length|0];while(x===not&&a.length>1);return x};
-const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch{}};
+const TEST=/\/dev(\/|$)/.test(location.pathname),NS=TEST?'dev-':''; // version de test (/dev/) : stockage et live séparés de la version principale
+const LS=(k,v)=>{k=NS+k;try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch{}};
 const safeC=c=>/^#[0-9a-f]{6}$/i.test(c)?c:'#888888';
 const slug=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\W+/g,'-').toLowerCase()||'arbre';
 function toast(m,label,fn){const t=el(`<div class=toast>${esc(m)}</div>`);if(fn){const b=el(`<button style="margin-left:10px">${esc(label)}</button>`);b.onclick=()=>{fn();t.remove()};t.append(b)}document.body.append(t);setTimeout(()=>t.remove(),fn?7000:3200)}
 function boom(){for(let i=0;i<18;i++){const s=el(`<span class=cf style="left:50%;top:50%;--dx:${(Math.random()-.5)*600}px;--dy:${(Math.random()-.7)*500}px">${pick(['🌿','🍃','✨','🌳','💚','🍂'])}</span>`);document.body.append(s);setTimeout(()=>s.remove(),1300)}}
 
 /* ---------- stockage local (IndexedDB) : rien ne quitte l'appareil ---------- */
-const DB=new Promise((ok,ko)=>{const r=indexedDB.open('racines',1);r.onupgradeneeded=()=>r.result.createObjectStore('trees',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
+const DB=new Promise((ok,ko)=>{const r=indexedDB.open(NS+'racines',1);r.onupgradeneeded=()=>r.result.createObjectStore('trees',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
 const tx=async(m,f)=>{const d=await DB;return new Promise((ok,ko)=>{const t=d.transaction('trees',m);const rq=f(t.objectStore('trees'));t.oncomplete=()=>ok(rq.result);t.onerror=()=>ko(t.error)})};
 // ponytail: l'arbre entier est réécrit à chaque sauvegarde; séparer les personnes en store dédié si les arbres deviennent énormes
 const saveTree=t=>tx('readwrite',s=>s.put(t)),allTrees=()=>tx('readonly',s=>s.getAll()),dropTree=id=>tx('readwrite',s=>s.delete(id));
@@ -566,7 +567,7 @@ const send=(m,except)=>{for(const c of live.conns)if(c!==except&&c.open)c.send(m
 const bcastPeers=()=>send({t:'peers',peers:live.peers});
 function presence(){if(!live.peer)return;if(live.host){live.peers.host.sel=sel;bcastPeers()}else send({t:'sel',id:sel})}
 const loadPeer=()=>window.Peer?Promise.resolve():new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';s.onload=ok;s.onerror=()=>ko(new Error('PeerJS indisponible (hors-ligne ?)'));document.head.append(s)});
-async function hostStart(custom,tries=0){await loadPeer();const code=custom||Math.random().toString(36).slice(2,8).toUpperCase(),peer=new Peer('racines-'+code);
+async function hostStart(custom,tries=0){await loadPeer();const code=custom||Math.random().toString(36).slice(2,8).toUpperCase(),peer=new Peer(NS+'racines-'+code);
  Object.assign(live,{peer,host:true,code,peers:{host:{name:ME.name,color:ME.color,sel,role:'creator'}}});
  peer.on('open',()=>{LS('racines.code.'+T.id,code);liveUI();render()}); // le code est mémorisé : même code = même lien à la prochaine session
  peer.on('error',e=>{if(e.type!=='unavailable-id'){toast('Live : '+e.type);leave();return}
@@ -576,7 +577,7 @@ async function hostStart(custom,tries=0){await loadPeer();const code=custom||Mat
   else{toast('Ce code est déjà utilisé par quelqu’un d’autre : choisis-en un autre');leave()}});
  peer.on('connection',c=>{c.on('data',m=>onMsg(m,c));c.on('close',()=>{live.conns=live.conns.filter(x=>x!==c);if(live.peers[c.peer]){toast(`👋 ${live.peers[c.peer].name} est parti·e`);delete live.peers[c.peer];delete live.dids[c.peer];bcastPeers();liveUI();render()}})})}
 async function joinStart(code,name,quiet){await loadPeer();ME.name=name;LS('racines.me',name);LS('racines.sess',code);const peer=new Peer();Object.assign(live,{peer,host:false,code,sent:0,peers:{},quiet:!!quiet});
- peer.on('open',()=>{const c=peer.connect('racines-'+code,{reliable:true});live.conns=[c];
+ peer.on('open',()=>{const c=peer.connect(NS+'racines-'+code,{reliable:true});live.conns=[c];
   c.on('open',()=>{c.send({t:'hi',pv:PV,me:{name:ME.name,color:ME.color,sel,id:DID}});if(!live.quiet)toast('⏳ En attente de l’acceptation de l’hôte…')});
   c.on('data',m=>onMsg(m,c));c.on('close',()=>{if(live.peer){toast('Session terminée — ta copie reste sur cet appareil');leave()}})});
  peer.on('error',e=>{if(!live.quiet)toast(e.type==='peer-unavailable'?'Code introuvable : l’hôte est-il connecté ?':'Connexion impossible ('+e.type+')');leave()})}
@@ -632,7 +633,8 @@ function liveUI(open){
   :`<p class=hint>Édite l’arbre à plusieurs en direct. Les données circulent <b>d’appareil à appareil</b> (WebRTC) — rien n’est envoyé à GitHub. L’hôte valide chaque invité.</p><label>Ton prénom<input id=lname value="${esc(ME.name)}"></label>${T?`<label>Code d’invitation <small>(garde le même code = même lien pour tes proches à chaque session)</small><input id=lhc value="${esc(LS('racines.code.'+T.id)||'')}" placeholder="vide = code aléatoire" style="text-transform:uppercase"></label><p class=hint>6 à 24 caractères (lettres, chiffres, tiret). Choisis-en un difficile à deviner. L’hôte valide de toute façon chaque nouvel appareil.</p><p><button class=pri data-l=host>Héberger « ${esc(T.name)} »</button></p>`:''}<h4>Rejoindre une session</h4><input id=lcode placeholder="Code (ex. K3F9QZ)" value="${esc(pre)}" style="text-transform:uppercase"><p><button data-l=join>Rejoindre</button></p><p class=hint>En rejoignant, tu reçois une copie de l’arbre, stockée uniquement sur ton appareil.</p>`)+'</div>'}
 
 /* ---------- démarrage ---------- */
-(async()=>{try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
+(async()=>{if(TEST){document.title='[TEST] '+document.title;document.body.style.paddingTop='28px';document.body.prepend(el('<div style="position:fixed;top:0;left:0;right:0;z-index:50;background:#d93025;color:#fff;font:700 13px system-ui;text-align:center;padding:5px">VERSION TEST — données séparées de Racines</div>'))}
+ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
  HOME=await allTrees();render();
  const m=location.hash.match(/join=([A-Za-z0-9]+)/);
  if(m){history.replaceState(null,'',location.pathname+location.search);const code=m[1].toUpperCase();

@@ -52,8 +52,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] Stocker chaque vocal, vidéo et photo comme un fichier à part, avec un identifiant.
 - [ ] **Identifiant = empreinte SHA-256 du contenu.** Même contenu = même identifiant. Contenu modifié = nouvel identifiant.
 - [ ] La fiche ne garde que les identifiants des médias (les modifications de texte redeviennent légères).
-- [ ] **Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil.
-- [ ] **⚠️ Média supprimé** : il reste disponible pendant la session, pour pouvoir être restauré. Seulement pendant la session : à la fin, il est supprimé.
+- [ ] **⚠️ Nettoyage automatique** : un média qui n'est plus référencé par l'arbre est supprimé de l'appareil, sauf pendant la session. Un média supprimé pendant la session reste disponible pour pouvoir être restauré, et il n'est réellement supprimé qu'après la session.
 - [ ] **⚠️ Média modifié hors de l'appli** (recadré, retouché, ou simplement réenregistré dans un logiciel) : l'empreinte change, donc le fichier n'est plus reconnu. Pour changer un média, passer par l'appli.
 
 ## Priorité 6 : Live et récupération des médias
@@ -84,7 +83,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante, un bouton « ⬇️ Récupérer sur mon arbre ». Il s'agit de télécharger dans son arbre, pas d'exporter.
 - [ ] **Médias identiques** : un média qui a la même empreinte que celui de l'hôte n'est jamais signalé, ni dans la notification, ni comme modification, ni dans les tickets. Il n'est pas à télécharger.
 - [ ] **⚠️ Les médias de l'invité lui-même ne sont jamais proposés** : ses propres photos, vidéos ou vocaux modifiés ou ajoutés restent sur son appareil et deviennent des tickets.
-- [ ] **Après avoir quitté une session**, l'arbre personnel contient la dernière version reçue de la session, y compris les modifications des éditeurs. Il n'y a pas de retour automatique à la version d'avant.
+- [ ] **Après avoir quitté une session**, l'arbre personnel de l'invité prend la version de la session qu'il a rejointe. Toutes les modifications et tous les médias reçus pendant la session arrivent donc sur son propre arbre. Il n'y a pas de retour automatique à la version d'avant.
 
 **Côté hôte**
 - [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »

@@ -633,6 +633,17 @@ async function readZip(buf){ // -> Map chemin→Uint8Array ; fichiers stockés o
   out.set(name,d)}
  return out}
 const toUrl=(b,type)=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>ko(r.error);r.readAsDataURL(new Blob([b],{type}))});
+const pl=(n,a,b)=>`${n} ${n>1?b:a}`;
+async function importDiff(l,o,byId){ // ce que l'import va changer sur l'arbre l ; mêmes règles que mergeTree : la fiche la plus récente gagne, rien n'est retiré. Chaque photo/vocal compte pour 1 média.
+ const d={add:0,upd:0,del:0,newer:0,gone:0,only:0,ma:0,mm:0,mr:0,info:o.tree.mu>l.mu},fid=async u=>u?sha(new Uint8Array(await(await fetch(u)).arrayBuffer())):'';
+ for(const [id,p] of Object.entries(o.tree.persons)){const lp=l.persons[id];
+  if(lp&&p.u<lp.u){lp.del&&!p.del?d.gone++:d.newer++;continue}
+  if(lp&&p.u===lp.u||!lp&&p.del)continue;
+  d[!lp||lp.del&&!p.del?'add':p.del?'del':'upd']++;
+  for(const k of ['photo','voice']){if(p[k]&&!byId.has(p[k]))continue; // média absent du fichier : celui de l'appareil est gardé
+   const x=await fid(lp&&lp[k]),y=p[k]||'';if(x!==y)d[!x?'ma':!y?'mr':'mm']++}}
+ for(const [id,p] of Object.entries(l.persons))if(!p.del&&!(id in o.tree.persons))d.only++;
+ return d}
 $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  let o,z;
  try{z=await readZip(await f.arrayBuffer());const j=z.get('arbre.json');if(!j)throw 0;o=JSON.parse(new TextDecoder().decode(j));if(o.app!=='racines'||o.v!==2||!o.tree||!o.tree.id||typeof o.tree.persons!=='object')throw 0}
@@ -640,10 +651,17 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
  try{const byId=new Map(); // un média se reconnaît à son contenu, jamais à son nom
   for(const [n,b] of z)if(n!=='arbre.json'&&n!=='LISEZ-MOI.txt')byId.set(await sha(b),b);
   const ps=Object.values(o.tree.persons),want=new Set(ps.flatMap(p=>[p.photo,p.voice]).filter(Boolean)),miss=[...want].filter(id=>!byId.has(id)).length;
-  if(!confirm(`Cet arbre contient ${ps.filter(p=>!p.del).length} personnes et ${want.size} médias. Importer ?`+(miss?`\n\n⚠️ ${miss} média(s) manquent ou sont abîmés dans ce fichier : ils resteront vides.`:'')))return;
-  HOME=await allTrees();const l=HOME.find(t=>t.id===o.tree.id),meta=o.media||{};
-  for(const p of ps)for(const k of ['photo','voice']){const id=p[k];if(!id)continue;
-   p[k]=byId.has(id)?await toUrl(byId.get(id),String((meta[id]||{}).type||'')):(l&&l.persons[p.id]&&l.persons[p.id][k])||''} // média absent du fichier : on garde celui de l'appareil s'il existe
+  HOME=await allTrees();const l=HOME.find(t=>t.id===o.tree.id),meta=o.media||{},np=ps.filter(p=>!p.del).length,tot=`${pl(np,'personne','personnes')} et ${pl(want.size,'média','médias')}`,warn=miss?`\n\n⚠️ ${pl(miss,'média manque','médias manquent')} ou ${miss>1?'sont abîmés':'est abîmé'} dans ce fichier.`:'';
+  let msg=`Cet arbre contient ${tot}. Importer ?`+warn;
+  if(l){const d=await importDiff(l,o,byId),ch=[[d.add,'personne ajoutée','personnes ajoutées'],[d.upd,'personne modifiée','personnes modifiées'],[d.del,'personne supprimée','personnes supprimées'],[d.ma,'média ajouté','médias ajoutés'],[d.mm,'média modifié','médias modifiés'],[d.mr,'média retiré','médias retirés']].filter(x=>x[0]).map(([n,a,b])=>'• '+pl(n,a,b)),st=[];
+   if(d.info)ch.push('• Les informations de l’arbre (nom, famille…) seront mises à jour');
+   if(d.newer)st.push('• '+pl(d.newer,'personne a été modifiée plus récemment sur cet appareil : sa version actuelle est gardée','personnes ont été modifiées plus récemment sur cet appareil : leur version actuelle est gardée'));
+   if(d.gone)st.push('• '+pl(d.gone,'personne du fichier a été supprimée depuis sur cet appareil : elle reste supprimée','personnes du fichier ont été supprimées depuis sur cet appareil : elles restent supprimées'));
+   if(d.only)st.push('• '+pl(d.only,'personne de cet appareil n’est pas dans le fichier : elle est conservée','personnes de cet appareil ne sont pas dans le fichier : elles sont conservées'));
+   const keep=st.length?`Ce qui reste tel quel :\n${st.join('\n')}`:'';
+   if(!ch.length)return alert('Rien à importer : cet arbre est déjà à jour sur cet appareil.'+(keep?'\n\n'+keep:'')+warn);
+   msg=`Cet arbre existe déjà sur cet appareil. Le fichier contient ${tot}.\n\nCe qui va changer :\n${ch.join('\n')}`+(keep?'\n\n'+keep:'')+'\n\nImporter ?'+warn}
+  if(!confirm(msg))return;
   const r=norm(o.tree);
   if(l){mergeTree(l,r);await saveTree(l);toast('Arbre fusionné avec la version existante')}else{await saveTree(r);toast('Arbre importé ✔')}
   await goHome()}catch(err){console.error(err);toast('Import impossible : '+err.message)}});

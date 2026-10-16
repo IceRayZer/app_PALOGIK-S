@@ -21,7 +21,7 @@ Légende : `[ ]` à faire · `[x]` déjà réalisé · **⚠️** point critique
 - [ ] **Avertissement iPhone** : Safari peut effacer les données d'un site non utilisé pendant 7 jours. Recommander d'installer l'appli sur l'écran d'accueil (voir « Mode hors-ligne installable » dans New features).
 - [ ] **Pop-up de bienvenue** à chaque arrivée sur le site : « Bienvenue dans Racines ! », suivi d'une seule phrase de présentation. En bas, en plus petit : « Si vous êtes en navigation privée, les informations et données ne seront pas sauvegardées. Il est donc préférable d'utiliser un navigateur classique. »
 - [ ] **Rappel de sauvegarde toutes les 10 minutes**, seulement s'il y a des modifications non exportées. Pas de rappel pendant qu'on écrit. Un bouton « Exporter tout l'arbre » lance l'export.
-- [ ] Le rappel ne sauvegarde jamais tout seul : le téléchargement est toujours déclenché manuellement par la personne.
+- [ ] Le rappel ne sauvegarde jamais tout seul : l'export est toujours déclenché manuellement par la personne.
 - [ ] **Limite connue** : sur téléphone, un export crée un nouveau fichier. L'ancien doit être supprimé à la main.
 - [ ] **Pas de sauvegarde automatique dans la galerie.** Le risque vient des services de sauvegarde du téléphone (Google Photos, iCloud), pas de l'appli.
 
@@ -78,7 +78,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 **Arrivée d'un invité**
 - [ ] **Sauvegarde automatique avant arrivée, dans tous les cas** : son arbre personnel est copié dans « Mes arbres » (« avant session »). Cette copie n'est pas une garantie, car l'arbre personnel change dès qu'on quitte la session.
 - [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
-- [ ] **Notification à l'arrivée** : « Il manque N médias à ton arbre. Voulez-vous tout récupérer ? » Oui ou non. Le nombre est un total : la liste détaillée n'est pas affichée.
+- [ ] **Notification à l'arrivée** : « Il manque N médias à ton arbre. Voulez-vous tout récupérer ? » Oui ou non. Le nombre est un total : la liste détaillée n'est pas affichée. Cette notification n'apparaît que s'il manque au moins un média.
 - [ ] **Si oui** : tous les médias absents de son arbre sont récupérés. Les médias propres à l'invité ne sont jamais remplacés.
 - [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante, un bouton « ⬇️ Récupérer sur mon arbre ». Il s'agit de télécharger dans son arbre, pas d'exporter.
 - [ ] **Médias identiques** : un média qui a la même empreinte que celui de l'hôte n'est jamais signalé, ni dans la notification, ni comme modification, ni dans les tickets. Il n'est pas à télécharger.
@@ -97,12 +97,11 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 
 - [ ] **Photo modifiée** : afficher l'ancienne et la nouvelle côte à côte, ou avec un curseur avant/après. Pas de comparaison pixel par pixel, pour éviter les calculs lourds.
 - [ ] **Photo ajoutée ou supprimée** : affichage en rose (ajouté) ou en rouge transparent (supprimé), comme les autres données.
-- [ ] **Vidéo modifiée** : une miniature (une image tirée de la vidéo) est créée à l'enregistrement ou à l'import, et stockée avec le média. Elle pèse environ 20 à 30 Ko. Elle permet de comparer sans télécharger la vidéo.
+- [ ] **Vidéo modifiée** : une miniature (une image tirée de la vidéo) est créée à l'enregistrement ou à l'import, et stockée avec le média. Elle pèse environ 20 à 30 Ko. Elle permet de comparer sans récupérer la vidéo.
 - [ ] La vidéo complète ne se récupère que sur demande, quand l'hôte clique pour la visionner.
 - [ ] Les médias du ticket restent sur l'appareil de l'invité : l'hôte les récupère à l'ouverture du ticket. L'hôte doit donc être connecté à l'invité pour voir le nouveau média.
 - [ ] **Validation possible même si le média n'est pas disponible** : la fiche est acceptée avec un média « manquant », jusqu'à ce qu'il soit reçu.
 - [ ] Les miniatures sont ajoutées à `arbre.json` pour être disponibles hors session.
-- [ ] Un média identique (même empreinte) n'apparaît jamais dans un ticket.
 
 ## Priorité 8 : Formats des médias
 
@@ -115,7 +114,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 
 - [ ] **Bouton « 💾 Exporter ce média » sur chaque média** : crée un fichier du média sur lequel on a cliqué, et non de l'arbre entier. Sur téléphone, ouvre le menu de partage natif (« Enregistrer la vidéo » sur iPhone, ou téléchargement sur Android) ; sur ordinateur, téléchargement dans le dossier Téléchargements.
 - [ ] **Distinction des icônes** : ⬇️ Récupérer sur mon arbre (stockage du navigateur, pour utiliser l'appli) et 💾 Exporter ce média (fichier, pour la galerie). Les deux ne doivent jamais être confondus dans l'interface.
-- [ ] Le téléchargement en dur est **toujours manuel**, jamais automatique.
+- [ ] L'export d'un média est **toujours manuel**, jamais automatique.
 - [ ] Signaler dans l'appli que les fichiers enregistrés dans la galerie peuvent être envoyés vers le cloud par les services du téléphone.
 
 ## Priorité 10 : Annulation (Ctrl+Z)

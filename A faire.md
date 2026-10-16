@@ -41,7 +41,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 ## Priorité 4 : Import de l'arbre
 
 - [ ] **Import en deux gestes** seulement : « 📥 Importer » puis choix du fichier. Simple pour les personnes peu à l'aise avec le numérique.
-- [ ] **Un seul format accepté** : le ZIP exporté par Racines. Pas d'ancien format à prendre en charge, l'appli n'ayant pas encore d'utilisateurs.
+- [ ] **Un seul format accepté** : le ZIP exporté par Racines. Pas d'ancien format à prendre en charge.
 - [ ] **Message de confirmation avant import** : « Cet arbre contient N personnes et M médias. Importer ? »
 - [ ] **Import des médias sans relecture inutile** : pour chaque média, si son empreinte est déjà présente dans le navigateur (y compris un doublon, c'est-à-dire un fichier au contenu identique), il n'est ni relu ni réécrit.
 - [ ] **Vérification d'intégrité** : à l'import, l'empreinte de chaque fichier est recalculée pour s'assurer qu'il n'est pas corrompu.
@@ -86,7 +86,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] **Après avoir quitté une session**, l'arbre personnel de l'invité prend la version de la session qu'il a rejointe. Toutes les modifications et tous les médias reçus pendant la session arrivent donc sur son propre arbre. Il n'y a pas de retour automatique à la version d'avant.
 
 **Côté hôte**
-- [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras revenir à ta version d'avant. »
+- [ ] **Avertissement rouge au moment d'héberger une session** (bouton 📡 Live) : « Avant d'inviter des personnes, fais une sauvegarde complète de l'arbre. Si des modifications arrivent pendant la session, tu pourras réimporter ta sauvegarde pour revenir à ta version d'avant. »
 - [ ] **Notification en haut** avec le nombre de modifications, ajouts et suppressions reçus.
 - [ ] **⚠️ Validation par l'hôte uniquement** : ✅ et ❌ ne sont accessibles que pour l'hôte, avec confirmation à chaque décision.
 

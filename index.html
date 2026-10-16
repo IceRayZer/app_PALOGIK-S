@@ -103,6 +103,26 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 .code{font:700 22px monospace;letter-spacing:3px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;z-index:40;animation:pop .2s;max-width:90vw}
 .cf{position:fixed;font-size:24px;pointer-events:none;z-index:30;animation:cf 1.2s ease-out forwards}
+/* pop-up de bienvenue : feuille du bas sur mobile, carte centrée sur grand écran */
+.wl{place-items:end center;padding:0}
+.wl .wz{width:min(480px,100%);border-radius:28px 28px 0 0;padding:22px 20px calc(18px + env(safe-area-inset-bottom));text-align:center;animation:wlup .35s cubic-bezier(.2,.8,.2,1)}
+@media(min-width:600px){.wl{place-items:center;padding:12px}.wl .wz{border-radius:28px}}
+.wl-hero{width:104px;height:104px;margin:2px auto 6px;border-radius:50%;display:grid;place-items:center;font-size:58px;background:var(--bg);background:color-mix(in srgb,var(--acc) 16%,var(--card))}
+.wl-hero span{animation:bob 2.4s ease-in-out infinite}
+.wl h2{font-size:26px;line-height:1.15;margin:.3em 0 .15em}
+.wl-sub{font-size:16px;color:var(--mut);margin:0 0 14px}
+.wl-chips{list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 18px;padding:0}
+.wl-chips li{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;font-weight:600;font-size:14px;background:var(--bg);background:color-mix(in srgb,var(--acc) 12%,var(--card));animation:wlup .4s both}
+.wl-chips li:nth-child(2){animation-delay:.08s}.wl-chips li:nth-child(3){animation-delay:.16s}
+.wl-chips i{font-style:normal;font-size:17px}
+.wl-go{display:block;width:100%;min-height:54px;margin:2px 0 14px;border:0;border-radius:16px;background:var(--acc);color:var(--accink);font-size:17px;font-weight:800;letter-spacing:.3px;box-shadow:0 4px 0 #0003;transition:transform .08s,box-shadow .08s}
+.wl-go:active{transform:translateY(3px);box-shadow:0 1px 0 #0003}
+.wl-go:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.wl-note{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px;border-radius:14px;background:var(--bg);font-size:12.5px;line-height:1.35;color:var(--mut)}
+.wl-note i{font-style:normal;font-size:18px;line-height:1.2}.wl-note p{margin:0}
+.wl-tip{background:#ffe9a8;color:#4a3b00;font-size:13.5px;margin-bottom:14px}.wl-tip b{font-weight:700}
+@keyframes wlup{from{transform:translateY(24px);opacity:0}}
+@media(prefers-reduced-motion:reduce){.wl .wz,.wl-chips li,.wl-hero span{animation:none}}
 @keyframes pop{from{transform:translateY(12px) scale(.97);opacity:0}}
 @keyframes bob{50%{transform:translateY(-5px) rotate(4deg)}}
 @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
@@ -634,8 +654,16 @@ function liveUI(open){
 
 /* ---------- accueil et rappel de sauvegarde ---------- */
 function welcome(){const ios=/iP(hone|ad|od)/.test(navigator.userAgent)&&!navigator.standalone; // Safari efface les données d'un site inutilisé 7 jours, sauf appli sur l'écran d'accueil
- const o=el(`<div class=ov><div class=wz><h2>Bienvenue dans Racines !</h2><p class=hint>Crée ton arbre généalogique, garde-le sur ton appareil et partage-le en direct avec tes proches, sans serveur.</p>${ios?'<p class=hint>📱 Sur iPhone, Safari peut effacer les données d’un site non utilisé pendant 7 jours. Ajoute Racines à ton écran d’accueil (Partager → Sur l’écran d’accueil) et exporte ton arbre régulièrement.</p>':''}<p style="text-align:center"><button class=pri>C’est parti</button></p><p class=hint><small>Si vous êtes en navigation privée, les informations et données ne seront pas sauvegardées. Il est donc préférable d’utiliser un navigateur classique.</small></p></div></div>`);
- o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};document.body.append(o)}
+ const o=el(`<div class="ov wl"><div class=wz role=dialog aria-modal=true aria-labelledby=wlt>
+  <div class=wl-hero aria-hidden=true><span>🌳</span></div>
+  <h2 id=wlt>Bienvenue dans Racines !</h2>
+  <p class=wl-sub>Crée et partage l’histoire de ta famille, simplement.</p>
+  <ul class=wl-chips><li><i>🔒</i>Sur ton appareil</li><li><i>👨‍👩‍👧</i>En direct</li><li><i>💾</i>Exportable</li></ul>
+  ${ios?'<div class="wl-note wl-tip"><i>📱</i><p><b>Sur iPhone</b>, Safari peut effacer les données d’un site non utilisé pendant 7 jours. Ajoute Racines à ton écran d’accueil : <b>Partager → Sur l’écran d’accueil</b>, et exporte ton arbre régulièrement.</p></div>':''}
+  <button class=wl-go>C’est parti !</button>
+  <div class=wl-note><i>🕶️</i><p>Si vous êtes en navigation privée, les informations et données ne seront pas sauvegardées. Il est donc préférable d’utiliser un navigateur classique.</p></div>
+ </div></div>`);
+ o.onclick=e=>{if(e.target===o||e.target.closest('.wl-go'))o.remove()};document.body.append(o);$('.wl-go',o).focus({preventScroll:true})}
 // rappel toutes les 10 min, seulement s'il y a des modifications non exportées, jamais pendant une saisie ni sous une fenêtre ouverte ; ne sauvegarde jamais seul
 setInterval(()=>{if(!T||!P().length||document.hidden||$('.ov')||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||(T.lastExport&&T.updated<=T.lastExport))return;bnHide=false;render()},6e5);
 

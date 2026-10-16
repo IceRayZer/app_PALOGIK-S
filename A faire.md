@@ -35,7 +35,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] Un fichier `LISEZ-MOI.txt` explique la structure, pour pouvoir reconstruire une appli même si Racines ne fonctionne plus.
 - [ ] Le ZIP sert à deux choses : réimporter l'arbre dans l'appli (sur n'importe quel navigateur), et retrouver les fichiers à la main dans la galerie ou sur l'ordinateur.
 - [ ] **Avertissement à l'export** si des médias manquent sur cet appareil.
-- [ ] **Bouton « 📤 Partager la sauvegarde »** : ouvre le menu de partage natif du téléphone (WhatsApp, Mail, Drive) pour envoyer le ZIP complet, au lieu de le télécharger.
+- [ ] **Bouton « 📤 Partager la sauvegarde »** : ouvre le menu de partage natif du téléphone (WhatsApp, Mail, Drive) pour envoyer le ZIP complet, au lieu de l'enregistrer sur l'appareil.
 - [ ] Vérifier la taille acceptée par le partage (WhatsApp, Mail) avant de publier ce bouton (à tester).
 
 ## Priorité 4 : Import de l'arbre
@@ -67,7 +67,7 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] **Avertissement en quittant** s'il reste des médias non récupérés : « Tu n'as pas tous les médias. Tu ne verras pas tout hors session. Tout récupérer maintenant ? »
 - [ ] Une fois reçu, un média reste sur l'appareil : pas de nouveau transfert.
 - [ ] **Reprise d'un transfert interrompu** : chaque média est reçu par morceaux, et les morceaux déjà reçus sont gardés.
-- [ ] **⚠️ Média modifié ou supprimé pendant son transfert** : prévenir la personne, abandonner les morceaux de l'ancienne version, puis reprendre avec la nouvelle version. Les médias déjà complets ne sont pas retéléchargés.
+- [ ] **⚠️ Média modifié ou supprimé pendant son transfert** : prévenir la personne, abandonner les morceaux de l'ancienne version, puis reprendre avec la nouvelle version. Les médias déjà complets ne sont pas récupérés à nouveau.
 - [ ] Le compteur « il reste N médias » ne compte que les médias actuellement référencés et absents de l'appareil. Un média remplacé n'y apparaît jamais.
 - [ ] **Côté hôte** : un média remplacé reste disponible le temps des transferts en cours. Si un transfert échoue à cause d'un remplacement, afficher « ce média a été remplacé » et recharger la liste.
 
@@ -80,8 +80,8 @@ Un seul export, qui contient tout. C'est le bouton « Exporter tout l'arbre », 
 - [ ] **⚠️ Avertissement avant de rejoindre une session** : « Avant de rejoindre, fais une sauvegarde complète de ton arbre. Après la session, ton arbre prendra la version de la session. » Avec un bouton **« Sauvegarder mon arbre »** directement dans l'avertissement.
 - [ ] **Notification à l'arrivée** : « Il manque N médias à ton arbre. Voulez-vous tout récupérer ? » Oui ou non. Le nombre est un total : la liste détaillée n'est pas affichée. Cette notification n'apparaît que s'il manque au moins un média.
 - [ ] **Si oui** : tous les médias absents de son arbre sont récupérés. Les médias propres à l'invité ne sont jamais remplacés.
-- [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante, un bouton « ⬇️ Récupérer sur mon arbre ». Il s'agit de télécharger dans son arbre, pas d'exporter.
-- [ ] **Médias identiques** : un média qui a la même empreinte que celui de l'hôte n'est jamais signalé, ni dans la notification, ni comme modification, ni dans les tickets. Il n'est pas à télécharger.
+- [ ] **Si non** : l'invité entre dans l'arbre. Chaque onglet de personne propose, pour chaque zone manquante, un bouton « ⬇️ Récupérer sur mon arbre ». Il s'agit de récupérer sur son arbre, pas d'exporter.
+- [ ] **Médias identiques** : un média qui a la même empreinte que celui de l'hôte n'est jamais signalé, ni dans la notification, ni comme modification, ni dans les tickets. Il n'est pas à récupérer.
 - [ ] **⚠️ Les médias de l'invité lui-même ne sont jamais proposés** : ses propres photos, vidéos ou vocaux modifiés ou ajoutés restent sur son appareil et deviennent des tickets.
 - [ ] **Après avoir quitté une session**, l'arbre personnel de l'invité prend la version de la session qu'il a rejointe. Toutes les modifications et tous les médias reçus pendant la session arrivent donc sur son propre arbre. Il n'y a pas de retour automatique à la version d'avant.
 

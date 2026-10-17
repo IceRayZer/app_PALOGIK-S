@@ -57,6 +57,7 @@ main{flex:1;display:flex;min-height:0;position:relative}
 .dr{border-radius:8px;padding:6px 8px;margin:6px 0;font-size:14px;overflow-wrap:anywhere}.dr b{display:block;font-size:12px;color:var(--mut)}
 .d-add{background:rgba(255,120,200,.32)}.d-mod{background:rgba(255,150,40,.38)}.d-del{background:rgba(220,20,20,.30)}
 .legend .d-add,.legend .d-mod,.legend .d-del{display:inline-block}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cmp figure{margin:0;text-align:center}.cmp figcaption{font-size:12px;color:var(--mut)}.dr .cmp .thumb{width:100%;max-width:150px;height:auto;aspect-ratio:1}
 .dr s{opacity:.8}.dr .thumb{width:72px;height:72px;object-fit:cover;border-radius:10px;vertical-align:middle}.dr audio{width:100%;margin:2px 0}
 .legend span{display:inline-block;padding:1px 8px;border-radius:8px;margin-right:6px;font-size:12px}
 .card{position:absolute;height:78px;display:flex;gap:8px;align-items:center;padding:8px;border-radius:12px;background:var(--card);border:2px solid var(--line);box-shadow:var(--sh);cursor:pointer}
@@ -568,6 +569,11 @@ function render(){
 
 /* ---------- salle des tickets : ajouts proposés par un invité à son arrivée ---------- */
 let tkOv=null,tkOpen=null;
+const guestConn=did=>{const k=did&&Object.keys(live.dids).find(k=>live.dids[k]===did);return k?live.conns.find(x=>x.peer===k&&x.open):null};
+const tkBusy=new Set(); // médias de tickets en cours de réception
+const tkMed=(t,id)=>tkBusy.has(id)?'⏳ Réception du média…':guestConn(t.did)?'⏳ En attente du média…':`⚠️ Média non disponible : ${esc(t.who)} doit être connecté·e pour l’envoyer`;
+function tkFetch(t){const c=guestConn(t.did); // les médias d'un ticket restent chez l'invité : l'hôte les récupère à l'ouverture du ticket
+ if(c)for(const id of [t.after.photo,t.after.voice])if(lack(id)&&!tkBusy.has(id)){tkBusy.add(id);getMedia(c,id).catch(()=>{}).finally(()=>{tkBusy.delete(id);ticketsUI()})}}
 const tell=(t,ok)=>{const k=Object.keys(live.dids).find(k=>live.dids[k]===t.did),c=t.did&&k&&live.conns.find(x=>x.peer===k);if(c&&c.open)c.send({t:'tkres',pid:t.pid,ok})}; // prévient l'invité de la décision
 const FL={first:'Prénom(s)',last:'Nom',maiden:'Nom de jeune fille',gender:'Genre',birth:'Naissance',birthPlace:'Lieu de naissance',alive:'Statut',death:'Décès',deathPlace:'Lieu de décès',job:'Métier',story:'Anecdote',photo:'Photo',voice:'Vocal',parents:'Parents',partner:'Conjoint·e'};
 const GL={F:'Femme',M:'Homme',X:'Autre'};
@@ -577,8 +583,8 @@ const showF=(p,k)=>{const nmOf=id=>{const q=get(id);return q?nm(q):'(fiche incon
 function diffRows(t){const b=get(t.pid),a=t.after,rows=[];
  for(const k in FL){const ov=rawF(b,k),nv=rawF(a,k);if(ov===nv||(!b&&k==='alive'&&nv==='v'))continue;
   const kind=!ov||(!b&&k==='alive')?'add':!nv?'del':'mod'; // rose = ajouté, orange = modifié, rouge = supprimé
-  const cell=(p,w)=>k==='photo'?(mu(p.photo)?`<img class=thumb src="${mu(p.photo)}" alt="">`:''):k==='voice'?`<small>${w==='new'?'Proposé':'Actuel'}</small><audio controls data-tk="${t.id}:${w}" onclick="event.stopPropagation()"></audio>`:esc(showF(p,k));
-  const html=kind==='add'?cell(a,'new'):kind==='del'?`<s>${cell(b,'old')}</s>`:k==='voice'?cell(b,'old')+cell(a,'new'):`${cell(b,'old')} → ${cell(a,'new')}`;
+  const cell=(p,w)=>k==='photo'?(p.photo?(mu(p.photo)?`<img class=thumb src="${mu(p.photo)}" alt="">`:`<div class=mmiss>${tkMed(t,p.photo)}</div>`):''):k==='voice'?`<small>${w==='new'?'Proposé':'Actuel'}</small>${p.voice&&lack(p.voice)?`<div class=mmiss>${tkMed(t,p.voice)}</div>`:`<audio controls data-tk="${t.id}:${w}" onclick="event.stopPropagation()"></audio>`}`:esc(showF(p,k));
+  const html=kind==='add'?cell(a,'new'):kind==='del'?`<s>${cell(b,'old')}</s>`:k==='voice'?cell(b,'old')+cell(a,'new'):k==='photo'?`<div class=cmp><figure><figcaption>Avant</figcaption>${cell(b,'old')}</figure><figure><figcaption>Proposé</figcaption>${cell(a,'new')}</figure></div>`:`${cell(b,'old')} → ${cell(a,'new')}`;
   rows.push(`<div class="dr d-${kind}"><b>${FL[k]}</b>${html}</div>`)}
  return rows}
 function ticketsUI(open){
@@ -693,12 +699,12 @@ const ACT={
  bnclose(){bnHide=true;render()},
  tickets(){tkOpen=null;ticketsUI(true)},
  tkclose(){if(tkOv){tkOv.remove();tkOv=null}},
- tkopen({id}){tkOpen=tkOpen===id?null:id;ticketsUI()},
+ tkopen({id}){tkOpen=tkOpen===id?null:id;const t=tkOpen&&(T.tickets||[]).find(x=>x.id===tkOpen);if(t)tkFetch(t);ticketsUI()},
  tkok({id}){if(live.peer&&!live.host)return; // validation : l'hôte seul
   const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;const cu=get(t.pid);if(cu&&cu.u>t.at&&!confirm('⚠️ Cette fiche a été modifiée depuis l’arrivée de '+t.who+' : valider écrasera ces changements récents. Continuer ?'))return;
-  if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.`))return;
+  if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.${[t.after.photo,t.after.voice].some(lack)?'\n\n⚠️ Un média n’est pas encore reçu : la fiche sera validée avec un média « manquant » jusqu’à sa réception.':''}`))return;
   T.tickets=T.tickets.filter(x=>x.id!==id);tell(t,true);
-  recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
+  recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});const gc=guestConn(t.did);if(gc)pullFrom(gc,[t.after.photo,t.after.voice]);ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
  tkno({id}){if(live.peer&&!live.host)return;
   const t=(T.tickets||[]).find(x=>x.id===id);if(!t||!confirm(`Refuser les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nCe ticket sera supprimé, l’arbre actuel reste inchangé.`))return;
   T.tickets=T.tickets.filter(x=>x.id!==id);saveTree(T);tell(t,false);render();ticketsUI();toast('❌ Ticket refusé')},
@@ -825,7 +831,7 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
   if(!known&&!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} » (en tant qu’Invité : lecture seule, tu pourras changer son rôle ensuite). Accepter ?`)){c.close();return}
   if(did)for(const [k,d] of Object.entries(live.dids))if(d===did){const old=live.conns.find(x=>x.peer===k);live.conns=live.conns.filter(x=>x!==old);delete live.peers[k];delete live.dids[k];if(old)old.close()} // même appareil qui revient : on remplace l'ancienne connexion
   live.conns.push(c);live.peers[c.peer]={...me,role:known&&known.role in RK?known.role:'guest'};
-  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',pv:PV,tree:wire(T)});c.send({t:'pend',pids:(T.tickets||[]).filter(x=>did&&x.did===did).map(x=>x.pid)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
+  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',pv:PV,tree:wire(T)});c.send({t:'pend',pids:(T.tickets||[]).filter(x=>did&&x.did===did).map(x=>x.pid)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);pullFrom(c,needIds());break}
  case'old':{if(!live.host){toast('Ta version de l’appli est trop ancienne : recharge la page (Ctrl+F5) puis rejoins à nouveau');leave()}break}
  case'pend':{if(!live.host&&T)setPend([...(m.pids||[]).filter(x=>typeof x==='string'),...(live.sentPids||[])]);render();break}
  case'tkres':{if(live.host||!T)return;setPend(pend().filter(x=>x!==m.pid));live.sentPids=(live.sentPids||[]).filter(x=>x!==m.pid);const q=get(m.pid);toast(m.ok?`✅ Ta modification de « ${q?nm(q):'une fiche'} » a été validée`:`❌ Ta modification de « ${q?nm(q):'une fiche'} » a été refusée`);render();break}
@@ -841,7 +847,7 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
  case'prop':{if(!live.host||!live.conns.includes(c)||!m.item||!m.item.after||!m.item.after.id)return;
   const after=normP(await ingestP({...m.item.after})),did=live.dids[c.peer]||'',who=(live.peers[c.peer]||{}).name||'?';
   T.tickets=(T.tickets||[]).filter(x=>!(did&&x.did===did&&x.pid===after.id)); // un seul ticket par appareil et par fiche
-  T.tickets.push({id:rid(),who,did,at:now(),pid:after.id,after});saveTree(T);toast(`🎫 ${who} propose une modification`);render();ticketsUI();pullFrom(c,[after.photo,after.voice]);break}
+  T.tickets.push({id:rid(),who,did,at:now(),pid:after.id,after});saveTree(T);toast(`🎫 ${who} propose une modification`);render();ticketsUI();break}
  case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(await ingestP({...m.p}));if(!T)return;const l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;(T.su=T.su||{})[p.id]=p.u;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host){send(m,c);pullFrom(c,[p.photo,p.voice])}render();break}
  case'm':{if(!T||!m.m||(live.host&&rankOf(c)<2))return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
  case'sel':{if(live.host&&live.peers[c.peer]){live.peers[c.peer].sel=typeof m.id==='string'?m.id:null;bcastPeers();render()}break}

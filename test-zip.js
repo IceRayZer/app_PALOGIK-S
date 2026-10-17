@@ -4,13 +4,13 @@ const cut=(a,b)=>{const i=h.indexOf(a),j=h.indexOf(b,i);assert(i>=0&&j>i,'repèr
 const b64=x=>Buffer.from(x).toString('base64'),U=(m,x)=>`data:${m};base64,`+b64(x);
 eval(`
 const wire=t=>{const {tickets,su,...w}=t;return w};
-let T=null;const live={peer:null,conns:[]},ME={name:'t'};const send=()=>{};
+let T=null;const esc=x=>x,ticketsUI=()=>{};const live={peer:null,conns:[],dids:{}},ME={name:'t'};const send=()=>{};
 const trees={},media={},parts={};let puts=0,saves=0;const toasts=[];let renders=0;const toast=m=>toasts.push(m),render=()=>renders++,$=()=>null,$$=()=>[];const IDBKeyRange={bound:(a,b)=>({a,b})};
 const tx=async(m,f,st='trees')=>{const o=st==='media'?media:st==='parts'?parts:trees,r=f({getAll:g=>({result:Object.entries(o).filter(([k])=>!g||(k>=g.a&&k<=g.b)).map(([,v])=>structuredClone(v))}),put:v=>{o[v.k||v.id]=structuredClone(v);if(st==='media')puts++},delete:id=>{delete o[id]}});return r&&r.result};
 const allTrees=()=>tx('readonly',s=>s.getAll()),saveTree=async t=>{saves++;trees[t.id]=structuredClone(t)};
 const toUrl=async(b,t)=>'data:'+t+';base64,'+Buffer.from(b).toString('base64');
 const confirm=()=>true;
-`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('async function readZip',"$('#imp').addEventListener")+`
+`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('async function readZip',"$('#imp').addEventListener")+`
 ;(async()=>{
  const id=async x=>sha(Buffer.from(x)),sameId=/^[0-9a-f]{64}$/;
  // --- migration : ancien format (médias dans les fiches, y compris dans un ticket) -> médias à part, sans perte, relançable
@@ -54,7 +54,7 @@ const confirm=()=>true;
  // --- transfert des médias entre appareils (hôte simulé, morceaux de 48 Ko)
  const big=Buffer.alloc(150000);for(let i=0;i<big.length;i++)big[i]=(i*7+3)%251;const bid=await sha(big),hostM=new Map();
  const hostAdd=(bytes,type='audio/webm')=>{const url=URL.createObjectURL(new Blob([bytes],{type}));hostM.set(bytes===big?bid:'x',{url,type})};hostAdd(big);
- const mkConn=(opt={})=>{const reqs=[],c={peer:'h',open:true,reqs,send(m){if(m.t!=='mget')return;reqs.push(m.i);if(opt.onReq)opt.onReq(m);if(opt.failAt===m.i&&!opt.failed){opt.failed=true;throw new Error('connexion coupée')}
+ const mkConn=(opt={})=>{const reqs=[],c={peer:opt.peer||'h',open:true,reqs,send(m){if(m.t!=='mget')return;reqs.push(m.i);if(opt.onReq)opt.onReq(m);if(opt.failAt===m.i&&!opt.failed){opt.failed=true;throw new Error('connexion coupée')}
   setTimeout(()=>serveMedia({send:r=>gotMedia(c,r)},m,opt.store||hostM),0)}};return c};
  T={persons:{p1:{id:'p1',photo:bid,voice:''}}};
  let c1=mkConn();await getMedia(c1,bid);assert.ok(MC.has(bid),'média reçu');assert.strictEqual(c1.reqs.length,4,'4 morceaux de 48 Ko');
@@ -80,6 +80,12 @@ const confirm=()=>true;
  live.conns=[mkConn()];live.peer={};toasts.length=0;dlAdd(needIds(),true);
  for(let i=0;i<200&&(dl.total||dl.act.size);i++)await new Promise(r=>setTimeout(r,10));
  assert.ok(MC.has(bid),'média récupéré par la file');assert.ok(dl.fail.has(other),'introuvable noté');assert.deepStrictEqual(needIds(),[other]);assert.strictEqual(dl.total,0,'compteurs remis à zéro');live.peer=null;live.conns=[];
+ // ticket : le média est récupéré chez l'invité à l'ouverture ; invité absent = média non disponible
+ await delMedia(bid);const tkt={id:'t1',did:'D1',who:'Léa',after:{id:'a',photo:bid,voice:''}};T={persons:{},tickets:[tkt]};
+ live.dids={k1:'D1'};live.conns=[mkConn({peer:'k1'})];assert.strictEqual(guestConn('D1'),live.conns[0]);
+ tkFetch(tkt);assert.ok(tkBusy.has(bid)&&tkMed(tkt,bid).includes('Réception'));
+ for(let i=0;i<200&&tkBusy.size;i++)await new Promise(r=>setTimeout(r,10));assert.ok(MC.has(bid)&&!tkBusy.size,'média du ticket récupéré chez l’invité');
+ await delMedia(bid);live.conns=[];assert.ok(tkMed(tkt,bid).includes('non disponible'),'invité absent');live.dids={};
  // décompte des tickets du bandeau de l'hôte : ajout = fiche inconnue, suppression = fiche supprimée, modification = fiche existante
  T={persons:{a:{id:'a'}},tickets:[{pid:'a',after:{}},{pid:'zz',after:{}},{pid:'a',after:{del:true}},{pid:'a',after:{}}]};
  assert.deepStrictEqual(tkCounts(),{add:1,mod:2,del:1});

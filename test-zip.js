@@ -5,12 +5,12 @@ const b64=x=>Buffer.from(x).toString('base64'),U=(m,x)=>`data:${m};base64,`+b64(
 eval(`
 const wire=t=>{const {tickets,su,...w}=t;return w};
 let T=null;const live={peer:null,conns:[]},ME={name:'t'};const send=()=>{};
-const trees={},media={};let puts=0,saves=0;
-const tx=async(m,f,st='trees')=>{const o=st==='media'?media:trees,r=f({getAll:()=>({result:Object.values(o).map(v=>structuredClone(v))}),put:v=>{o[v.id]=structuredClone(v);if(st==='media')puts++},delete:id=>{delete o[id]}});return r&&r.result};
+const trees={},media={},parts={};let puts=0,saves=0;const toasts=[];let renders=0;const toast=m=>toasts.push(m),render=()=>renders++,$=()=>null,$$=()=>[];const IDBKeyRange={bound:(a,b)=>({a,b})};
+const tx=async(m,f,st='trees')=>{const o=st==='media'?media:st==='parts'?parts:trees,r=f({getAll:g=>({result:Object.entries(o).filter(([k])=>!g||(k>=g.a&&k<=g.b)).map(([,v])=>structuredClone(v))}),put:v=>{o[v.k||v.id]=structuredClone(v);if(st==='media')puts++},delete:id=>{delete o[id]}});return r&&r.result};
 const allTrees=()=>tx('readonly',s=>s.getAll()),saveTree=async t=>{saves++;trees[t.id]=structuredClone(t)};
 const toUrl=async(b,t)=>'data:'+t+';base64,'+Buffer.from(b).toString('base64');
 const confirm=()=>true;
-`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('async function readZip','const toUrl=')+cut('const pl=',"$('#imp').addEventListener")+`
+`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('async function readZip',"$('#imp').addEventListener")+`
 ;(async()=>{
  const id=async x=>sha(Buffer.from(x)),sameId=/^[0-9a-f]{64}$/;
  // --- migration : ancien format (médias dans les fiches, y compris dans un ticket) -> médias à part, sans perte, relançable
@@ -29,7 +29,6 @@ const confirm=()=>true;
  // --- réception en ligne : image/audio acceptés, autre type refusé
  const p=await ingestP({photo:U('image/jpeg','RECU'),voice:U('text/html','<script>')});assert.ok(sameId.test(p.photo));assert.strictEqual(p.voice,'');
  const n=puts;await putMedia(new Blob(['RECU'],{type:'image/jpeg'}));assert.strictEqual(puts,n,'média déjà présent : pas réécrit');
- assert.strictEqual(await dataOf(p.photo),U('image/jpeg','RECU'),'sortie live : données intégrées');
  // --- export : un seul fichier par contenu, empreintes = contenu, média manquant signalé
  const ph=await putMedia(new Blob(['PHOTO'],{type:'image/jpeg'})),vo=await putMedia(new Blob(['VOIX'],{type:'audio/webm;codecs=opus'}));
  T={name:'Test',persons:{a:{id:'a',first:'Jean',last:'Dupont',birth:'1952',u:0,photo:ph,voice:vo},b:{id:'b',first:'Jean',last:'Dupont',birth:'1952',u:0,photo:ph,voice:'f'.repeat(64)}}};
@@ -52,4 +51,33 @@ const confirm=()=>true;
  const ps2=[P('x',1,{photo:'0'.repeat(64)})];await storeMedia(ps2,byId,{},{persons:{x:{photo:'1'.repeat(64)}}},false);assert.strictEqual(ps2[0].photo,'','remplacement : vide');
  await storeMedia([P('e',1,{photo:E1})],byId,{},null,true);assert.strictEqual(puts,n2+1,'déjà présent : pas réécrit');
  assert.ok(h.includes('await storeMedia('),"l'import doit appeler storeMedia");
+ // --- transfert des médias entre appareils (hôte simulé, morceaux de 48 Ko)
+ const big=Buffer.alloc(150000);for(let i=0;i<big.length;i++)big[i]=(i*7+3)%251;const bid=await sha(big),hostM=new Map();
+ const hostAdd=(bytes,type='audio/webm')=>{const url=URL.createObjectURL(new Blob([bytes],{type}));hostM.set(bytes===big?bid:'x',{url,type})};hostAdd(big);
+ const mkConn=(opt={})=>{const reqs=[],c={peer:'h',open:true,reqs,send(m){if(m.t!=='mget')return;reqs.push(m.i);if(opt.onReq)opt.onReq(m);if(opt.failAt===m.i&&!opt.failed){opt.failed=true;throw new Error('connexion coupée')}
+  setTimeout(()=>serveMedia({send:r=>gotMedia(c,r)},m,opt.store||hostM),0)}};return c};
+ T={persons:{p1:{id:'p1',photo:bid,voice:''}}};
+ let c1=mkConn();await getMedia(c1,bid);assert.ok(MC.has(bid),'média reçu');assert.strictEqual(c1.reqs.length,4,'4 morceaux de 48 Ko');
+ assert.deepStrictEqual(Buffer.from(await(await fetch(MC.get(bid).url)).arrayBuffer()),big,'contenu identique');assert.strictEqual(Object.keys(parts).length,0,'morceaux nettoyés');
+ // reprise après coupure : seuls les morceaux manquants sont redemandés
+ await delMedia(bid);const opt={failAt:2};c1=mkConn(opt);
+ await assert.rejects(getMedia(c1,bid),/coupée/);assert.ok(Object.keys(parts).length>=1&&!MC.has(bid),'morceaux déjà reçus gardés');
+ const have=Object.values(parts).map(x=>x.i);c1=mkConn();await getMedia(c1,bid);
+ assert.deepStrictEqual(c1.reqs.sort(),[0,1,2,3].filter(i=>!have.includes(i)),'reprise : seuls les manquants sont redemandés');assert.ok(MC.has(bid));
+ // média corrompu chez l'hôte : refusé, rien n'est rangé
+ await delMedia(bid);const bad=Buffer.from(big);bad[100]^=255;const cs=new Map([[bid,{url:URL.createObjectURL(new Blob([bad])),type:'audio/webm'}]]);
+ await assert.rejects(getMedia(mkConn({store:cs}),bid),/abîmé/);assert.ok(!MC.has(bid)&&Object.keys(parts).length===0,'empreinte incorrecte : rien de gardé');
+ // média remplacé pendant le transfert : abandon et morceaux jetés
+ await assert.rejects(getMedia(mkConn({onReq:m=>{if(m.i===0)T.persons.p1.photo=''}}),bid),/replaced/);assert.ok(!MC.has(bid)&&Object.keys(parts).length===0,'ancienne version abandonnée');T.persons.p1.photo=bid;
+ // média disparu chez l'hôte
+ await assert.rejects(getMedia(mkConn({store:new Map()}),bid),/gone/);
+ // demandes invalides ignorées ; réponse non demandée ignorée
+ const sent=[];await serveMedia({send:m=>sent.push(m)},{id:'zz',i:0});await serveMedia({send:m=>sent.push(m)},{id:bid,i:-1});assert.strictEqual(sent.length,0);gotMedia({peer:'h'},{t:'mchunk',id:bid,i:0,n:1,d:new ArrayBuffer(1)});
+ // reste à récupérer : référencés et absents seulement ; ancien format et fiches supprimées jamais
+ const other='a'.repeat(64);await delMedia(bid);T={persons:{p1:{id:'p1',photo:bid,voice:other},p2:{id:'p2',photo:'data:image/png;base64,AA',voice:''},p3:{id:'p3',del:true,photo:'b'.repeat(64),voice:''}}};
+ assert.deepStrictEqual(needIds().sort(),[bid,other].sort());
+ // « Tout récupérer » : file, compteurs remis à zéro, média introuvable noté sans boucle
+ live.conns=[mkConn()];live.peer={};toasts.length=0;dlAdd(needIds(),true);
+ for(let i=0;i<200&&(dl.total||dl.act.size);i++)await new Promise(r=>setTimeout(r,10));
+ assert.ok(MC.has(bid),'média récupéré par la file');assert.ok(dl.fail.has(other),'introuvable noté');assert.deepStrictEqual(needIds(),[other]);assert.strictEqual(dl.total,0,'compteurs remis à zéro');live.peer=null;live.conns=[];
  console.log('test-zip OK')})().catch(e=>{console.error('ECHEC',e.stack||e.message);process.exit(1)})`);

@@ -123,6 +123,8 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 .wl-tip{background:#ffe9a8;color:#4a3b00;font-size:13.5px;margin-bottom:14px}.wl-tip b{font-weight:700}
 .imp-btns{display:grid;gap:8px}.imp-btns button{padding:12px;border-radius:12px;font-weight:700}
 .imp-btns .danger{border-color:#c0392b;color:#c0392b}
+.av{position:relative}.mdot{position:absolute;right:-3px;bottom:-3px;font-style:normal;font-size:11px;line-height:1;background:var(--card);border:1px solid var(--line);border-radius:50%;padding:2px}.av.lg .mdot{font-size:16px}
+.mmiss{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0;padding:8px 10px;border-radius:12px;background:#ffe9a8;color:#4a3b00;font-size:13.5px}
 @keyframes wlup{from{transform:translateY(24px);opacity:0}}
 @media(prefers-reduced-motion:reduce){.wl .wz,.wl-chips li,.wl-hero span{animation:none}}
 @keyframes pop{from{transform:translateY(12px) scale(.97);opacity:0}}
@@ -175,8 +177,8 @@ function toast(m,label,fn){const t=el(`<div class=toast>${esc(m)}</div>`);if(fn)
 function boom(){for(let i=0;i<18;i++){const s=el(`<span class=cf style="left:50%;top:50%;--dx:${(Math.random()-.5)*600}px;--dy:${(Math.random()-.7)*500}px">${pick(['🌿','🍃','✨','🌳','💚','🍂'])}</span>`);document.body.append(s);setTimeout(()=>s.remove(),1300)}}
 
 /* ---------- stockage local (IndexedDB) : rien ne quitte l'appareil ---------- */
-const DB=new Promise((ok,ko)=>{const r=indexedDB.open(NS+'racines',2);r.onupgradeneeded=()=>{const d=r.result;for(const n of ['trees','media'])if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})};r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
-const tx=async(m,f,st='trees')=>{const d=await DB;return new Promise((ok,ko)=>{const t=d.transaction(st,m);const rq=f(t.objectStore(st));t.oncomplete=()=>ok(rq.result);t.onerror=()=>ko(t.error)})};
+const DB=new Promise((ok,ko)=>{const r=indexedDB.open(NS+'racines',3);r.onupgradeneeded=()=>{const d=r.result;for(const [n,k] of [['trees','id'],['media','id'],['parts','k']])if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:k})};r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
+const tx=async(m,f,st='trees')=>{const d=await DB;return new Promise((ok,ko)=>{const t=d.transaction(st,m);const rq=f(t.objectStore(st));t.oncomplete=()=>ok(rq&&rq.result);t.onerror=()=>ko(t.error)})};
 // ponytail: l'arbre entier est réécrit à chaque sauvegarde; séparer les personnes en store dédié si les arbres deviennent énormes
 const saveTree=t=>tx('readwrite',s=>s.put(t)),allTrees=()=>tx('readonly',s=>s.getAll()),dropTree=id=>tx('readwrite',s=>s.delete(id));
 
@@ -192,18 +194,71 @@ const delMedia=async id=>{await tx('readwrite',s=>s.delete(id),'media');URL.revo
 const refs=t=>{const r=new Set();for(const p of [...Object.values(t.persons||{}),...(t.tickets||[]).map(x=>x.after)])if(p)for(const k of MK)if(p[k])r.add(p[k]);return r};
 async function gc(){if(live.peer||T)return; // nettoyage : un média qu'aucun arbre ne référence est supprimé, jamais pendant une session live ni tant qu'un arbre est ouvert (annulation possible)
  const ref=new Set();for(const t of await allTrees())refs(t).forEach(x=>ref.add(x));
- for(const id of [...MC.keys()])if(!ref.has(id))await delMedia(id)}
+ for(const id of [...MC.keys()])if(!ref.has(id))await delMedia(id);
+ for(const x of await tx('readonly',s=>s.getAll(),'parts'))if(!ref.has(x.id))await tx('readwrite',s=>s.delete(x.k),'parts')}
 const okData=(k,u)=>k==='photo'?safePhoto(u):safeAudio(u);
 async function ingestP(p){for(const k of MK)if(typeof p[k]==='string'&&p[k].startsWith('data:')){const u=okData(k,p[k]);try{p[k]=u?await putMedia(await(await fetch(u)).blob()):''}catch{p[k]=''}}return p} // média reçu en ligne (live) ou ancien format -> rangé à part
-const dataOf=async id=>{const m=MC.get(id);return m?toUrl(await(await fetch(m.url)).arrayBuffer(),m.type):''};
-const outP=async p=>({...p,photo:await dataOf(p.photo),voice:await dataOf(p.voice)}); // ponytail: le live envoie encore les médias dans la fiche ; la Priorité 6 les enverra à la demande
-const outTree=async t=>{const w=wire(t);return{...w,persons:Object.fromEntries(await Promise.all(Object.entries(w.persons).map(async([k,p])=>[k,await outP(p)])))}};
-const sendP=async(p,by=ME.name)=>{if(live.conns.length)send({t:'p',p:await outP(p),by})};
+const sendP=(p,by=ME.name)=>send({t:'p',p,by}); // les médias ne voyagent jamais avec la fiche : l'autre appareil les demande (voir getMedia)
 async function migrate(){ // ancien stockage (médias intégrés aux fiches) -> médias à part ; sans risque : les médias sont écrits avant la fiche, et on peut relancer
  for(const t of await allTrees()){let ch=false;
   for(const p of [...Object.values(t.persons||{}),...(t.tickets||[]).map(x=>x.after)])if(p&&MK.some(k=>typeof p[k]==='string'&&p[k].startsWith('data:'))){await ingestP(p);ch=true}
   if(ch)await saveTree(t)}}
 
+
+/* ---------- transfert des médias par morceaux : demandés un à un, reprise possible, empreinte vérifiée ---------- */
+const CHK=48*1024,lack=id=>!!id&&!MC.has(id)&&!String(id).startsWith('data:'); // lack : média référencé par une fiche mais absent de cet appareil
+const PEND=new Map(),wanted=id=>!!T&&refs(T).has(id);
+const mreq=(c,id,i)=>new Promise((ok,ko)=>{const k=c.peer+'|'+id+'/'+i,t=setTimeout(()=>{PEND.delete(k);ko(new Error('délai dépassé'))},20000);
+ PEND.set(k,{ok:m=>{clearTimeout(t);ok(m)},ko:e=>{clearTimeout(t);ko(e)}});try{c.send({t:'mget',id,i})}catch(e){clearTimeout(t);PEND.delete(k);ko(e)}});
+async function serveMedia(c,m,store=MC){ // l'autre appareil demande un morceau d'un média que j'ai (hôte comme invité)
+ const id=String(m.id||''),i=m.i;if(!/^[0-9a-f]{64}$/.test(id)||!Number.isInteger(i)||i<0)return;
+ const r=store.get(id);if(!r)return c.send({t:'mgone',id});
+ const b=await(await fetch(r.url)).blob(),n=Math.max(1,Math.ceil(b.size/CHK));if(i>=n)return c.send({t:'mgone',id});
+ c.send({t:'mchunk',id,i,n,type:r.type,d:await b.slice(i*CHK,(i+1)*CHK).arrayBuffer()})}
+function gotMedia(c,m){ // réponse à l'une de mes demandes (une réponse non demandée est ignorée)
+ if(m.t==='mgone'){for(const [k,w] of PEND)if(k.startsWith(c.peer+'|'+m.id+'/')){PEND.delete(k);w.ko(new Error('gone'))}return}
+ const k=c.peer+'|'+m.id+'/'+m.i,w=PEND.get(k);if(!w)return;PEND.delete(k);
+ const d=m.d&&new Uint8Array(m.d);if(!d||d.length>CHK||!(m.n>=1&&m.n<=5000)||!(m.i>=0&&m.i<m.n))return w.ko(new Error('morceau invalide'));
+ w.ok({i:m.i,n:m.n,type:String(m.type||'').slice(0,100),d})}
+async function getMedia(c,id,prog=()=>{}){ // reprend les morceaux déjà reçus ; abandonne si le média n'est plus référencé (remplacé) ; vérifie l'empreinte avant de le ranger
+ const parts=await tx('readonly',s=>s.getAll(IDBKeyRange.bound(id+'/',id+'/￿')),'parts'),have=new Map(parts.map(x=>[x.i,x]));
+ let n=parts.length?parts[0].n:0,type=parts.length?parts[0].type:'';
+ const put=async r=>{const x={k:id+'/'+r.i,id,i:r.i,n:r.n,type:r.type,d:r.d.buffer.slice(r.d.byteOffset,r.d.byteOffset+r.d.byteLength)};await tx('readwrite',s=>s.put(x),'parts');have.set(r.i,x)},
+  drop=()=>tx('readwrite',s=>{for(const i of have.keys())s.delete(id+'/'+i)},'parts');
+ if(!n){const r=await mreq(c,id,0);n=r.n;type=r.type;await put(r)}
+ const todo=[...Array(n).keys()].filter(i=>!have.has(i));let nx=0,stop=null;prog(have.size,n);
+ await Promise.all(Array.from({length:4},async()=>{while(!stop){if(!wanted(id)){stop=new Error('replaced');return}
+  const i=todo[nx++];if(i===undefined)return;
+  try{await put(await mreq(c,id,i));prog(have.size,n)}catch(e){stop=e}}}));
+ if(stop){if(stop.message==='replaced'||stop.message==='gone')await drop();throw stop} // une coupure garde les morceaux reçus pour reprendre
+ const b=new Uint8Array(await new Blob([...Array(n).keys()].map(i=>have.get(i).d)).arrayBuffer());
+ if(await sha(b)!==id){await drop();throw new Error('média abîmé')}
+ await putBytes(id,b,type);await drop();return id}
+const hostConn=()=>live.conns.find(c=>c.open),needIds=()=>T?[...new Set(Object.values(T.persons).filter(p=>!p.del).flatMap(p=>MK.map(k=>p[k])).filter(lack))]:[]; // reste à récupérer : référencés et absents, jamais un média remplacé
+const dl={q:[],act:new Set(),done:0,total:0,all:false,err:false,fail:new Set(),pr:{}};let dlT=0;
+const dlRender=()=>{clearTimeout(dlT);dlT=setTimeout(()=>typeof render==='function'&&render(),300)};
+function dlUI(){const t=`⬇️ Médias : ${dl.done} / ${dl.total}`;[$('#dlb'),$('#dlp')].forEach(e=>e&&(e.textContent=t));$$('[data-mp]').forEach(e=>{const v=dl.pr[e.dataset.mp];e.textContent=v==null?'':`⏳ ${v} %`})}
+function dlAdd(ids,all){if(all)dl.all=true;
+ if(!hostConn())return toast('Pas de connexion à l’hôte : les médias se récupèrent pendant une session.');
+ for(const id of ids)if(lack(id)&&!dl.act.has(id)&&!dl.q.includes(id)&&!dl.fail.has(id)){dl.q.push(id);dl.total++}
+ render();dlPump()}
+function dlPump(){while(dl.act.size<2&&dl.q.length){const id=dl.q.shift();dl.act.add(id);dlOne(id)}}
+async function dlOne(id){let again=false;
+ try{const c=hostConn();if(!c)throw new Error('pas de connexion');await getMedia(c,id,(a,n)=>{dl.pr[id]=Math.round(a*100/n);dlUI()});dl.done++}
+ catch(e){dl.total--;
+  if(e.message==='replaced'){toast('⚠️ Un média a été remplacé pendant son transfert : je récupère la nouvelle version.');again=dl.all}
+  else if(e.message==='gone'){dl.fail.add(id);toast('Ce média a été remplacé chez l’hôte : liste mise à jour.')}
+  else if(!dl.err){dl.err=true;toast('Récupération interrompue : relance « Tout récupérer » pour reprendre où elle s’est arrêtée.')}}
+ dl.act.delete(id);delete dl.pr[id];
+ if(again)dlAdd(needIds());dlPump();
+ if(!dl.q.length&&!dl.act.size){const miss=needIds().length;if(dl.done)toast(miss?`⬇️ ${pl(miss,'média reste','médias restent')} à récupérer`:'✅ Tous les médias sont sur ton arbre');Object.assign(dl,{done:0,total:0,all:false,err:false});render()}else dlRender();dlUI()}
+const pullFrom=async(c,ids)=>{for(const id of ids)if(lack(id)&&wanted(id))try{await getMedia(c,id)}catch{}render()}; // l'hôte récupère, sans bruit, les médias qu'un éditeur vient d'ajouter
+async function tryLeave(){const n=live.host?0:needIds().length;
+ if(n){const a=await ask('Tu n’as pas tous les médias. Tu ne verras pas tout hors session. Tout récupérer maintenant ?',[['all','Tout récupérer','pri'],['leave','Quitter quand même','danger'],['','Annuler','']]);
+  if(a==='all'){dl.fail.clear();dlAdd(needIds(),true);return liveUI()}if(a!=='leave')return}
+ leave()}
+const mediaPanel=()=>{if(live.host||!T)return'';const n=needIds().length;return`<h4>Médias</h4>${dl.total?`<p><span id=dlp>⬇️ Médias : ${dl.done} / ${dl.total}</span></p>`:n?`<p>Il reste <b>${n}</b> média${n>1?'s':''} à récupérer sur ton arbre.</p><p><button class=pri data-l=getall>⬇️ Tout récupérer</button></p>`:'<p class=hint>Tous les médias sont sur ton arbre ✓</p>'}`};
+const gb=id=>live.peer&&!live.host?`<button data-act=getm data-id="${id}">⬇️ Récupérer sur mon arbre</button><small data-mp="${id}"></small>`:'<small>absent de cet appareil</small>';
 
 /* ---------- dates ---------- */
 const ymd=(y,m,d)=>{const t=new Date(y,m-1,d);return t.getMonth()!==m-1||t.getDate()!==+d?null:`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`};
@@ -285,7 +340,7 @@ async function recToggle(d,draw){
    if(peak<.02)toast('⚠️ Aucun son capté : vérifie que le micro n’est pas coupé, puis réessaie');
    putMedia(new Blob(ch,{type:mr.mimeType||mt||'audio/webm'})).then(id=>{d.voice=id;draw()})};
   mr.start();draw()}catch{toast('Micro inaccessible : autorise-le dans le navigateur (un appel en cours peut aussi l’occuper)')}}
-const av=(p,c='')=>{const u=mu(p.photo);return`<span class="av ${c}" style="${u?`background-image:url(${u})`:''}">${u?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}</span>`};
+const av=(p,c='')=>{const u=mu(p.photo);return`<span class="av ${c}" style="${u?`background-image:url(${u})`:''}">${u?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}${lack(p.photo)||lack(p.voice)?'<i class=mdot title="Média à récupérer">⬇️</i>':''}</span>`};
 
 const coarse=matchMedia('(pointer:coarse)').matches; // écran tactile : le clavier ne s'ouvre jamais tout seul
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -471,11 +526,11 @@ function popHtml(p){
   row=(s,h)=>`<div class=fr><div>${h}</div>${eb(s)}</div>`,
   hasRel=p.parents.some(get)||get(p.partner)||kids(p).length,
   miss=W?[[!p.photo,'photo','📸 Photo'],[!p.birth&&!p.birthPlace,'birth','🎂 Naissance'],[!p.job&&!p.story,'story','📖 Anecdote'],[!p.voice,'voice','🎙️ Vocal'],[!hasRel,'family','🌳 Famille']].filter(x=>x[0]).map(([,s,l])=>`<button class=eb2 data-act=editat data-id="${p.id}" data-s=${s}>＋ ${l}</button>`).join(''):'';
- return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop aria-label="Fermer">✕</button></div><div class=ph>${mu(p.photo)?`<img class=bigph src="${mu(p.photo)}" alt="">${eb('photo')}`:av(p,'lg')}<h2>${esc(nm(p))} ${eb('id')}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
+ return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop aria-label="Fermer">✕</button></div><div class=ph>${mu(p.photo)?`<img class=bigph src="${mu(p.photo)}" alt="">${eb('photo')}`:av(p,'lg')+(lack(p.photo)?`<div class=mmiss>📸 Photo non récupérée ${gb(p.photo)}</div>`:'')}<h2>${esc(nm(p))} ${eb('id')}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
  ${p.birth||p.birthPlace?row('birth',`🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}`):''}
  ${p.alive===false?row('life',`🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}`):''}
  ${p.job||p.story?row('story',`${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}`):''}
- ${p.voice?row('voice',`<h4>🎙️ Message vocal</h4><audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`):''}
+ ${p.voice?row('voice',`<h4>🎙️ Message vocal</h4>${lack(p.voice)?`<div class=mmiss>🎙️ Vocal non récupéré ${gb(p.voice)}</div>`:`<audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`}`):''}
  ${hasRel?row('family',rel('Parents',p.parents.map(get).filter(Boolean))+rel('En couple avec',[get(p.partner)].filter(Boolean))+rel('Enfants',kids(p))+rel('Fratrie',sibs(p))):''}
  ${miss?`<div class=miss>${miss}</div>`:''}
  ${W?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}" aria-label="Supprimer">🗑️</button></div>`:''}</div>`}
@@ -499,6 +554,7 @@ function render(){
  const mn=$('#mn'),bn=$('#bn');
  if(!T){popId=null;popup();bn.innerHTML='';mn.innerHTML=homeView();return}
  bn.innerHTML=!bnHide&&P().length&&(!T.lastExport||T.updated>T.lastExport)?`<div class=banner><span>💾 Sauvegarde non exportée (${T.lastExport?'dernière : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais'}) — tout est stocké sur cet appareil uniquement.</span><button data-act=export>Exporter tout l’arbre</button><button class=x data-act=bnclose>✕</button></div>`:'';
+ if(dl.total)bn.innerHTML=`<div class=banner style="background:#dff3e4;color:#10351c"><span id=dlb>⬇️ Médias : ${dl.done} / ${dl.total}</span></div>`+bn.innerHTML;
  {const pn=live.peer&&!live.host?pend().length:0;if(pn)bn.innerHTML=`<div class=banner style="background:#dbeafe;color:#10213f"><span>⏳ ${pn} de tes modification(s) sont en attente de validation par l’hôte. Tu vois ici la version de l’hôte ; tu peux utiliser la session normalement.</span></div>`+bn.innerHTML}
  let body;
  try{body=!P().length?`<div class=empty-st><div><div style="font-size:60px">🌱</div><h2>Plante la première graine</h2><p class=mut>Ajoute la première personne de ton arbre.</p><button class=pri data-act=add>＋ Ajouter une personne</button></div></div>`:{tree:treeView,fan:fanView,time:timeView,gen:genView,stats:statsView}[view]()}
@@ -608,6 +664,7 @@ const ACT={
  select({id}){sel=popId=id||null;presence();render()},
  pick({id}){sel=id;presence();render()},
  closePop(){popId=null;popup()},
+ getm({id}){dlAdd([id])},
  edit({id}){openPerson(id)},
  editat({id,s}){openPerson(id,{},null,s)},
  addChild({id}){const p=get(id),q=get(p.partner);openPerson(null,{parents:[p.id,q&&q.id].filter(Boolean),last:p.gender==='F'&&q?q.last:p.last})},
@@ -656,7 +713,6 @@ async function readZip(buf){ // -> Map chemin→Uint8Array ; fichiers stockés o
   if(meth===8)d=new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());else if(meth!==0)throw new Error('zip');
   out.set(name,d)}
  return out}
-const toUrl=(b,type)=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>ko(r.error);r.readAsDataURL(new Blob([b],{type}))});
 const pl=(n,a,b)=>`${n} ${n>1?b:a}`;
 async function importDiff(l,o,byId){ // ce que l'import va changer sur l'arbre l ; mêmes règles que mergeTree : la fiche la plus récente gagne, rien n'est retiré. Chaque photo/vocal compte pour 1 média.
  const d={add:0,upd:0,del:0,newer:0,gone:0,only:0,ma:0,mm:0,mr:0,info:o.tree.mu>l.mu};
@@ -709,7 +765,7 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
 /* ---------- live : WebRTC pair-à-pair via PeerJS (les données ne passent par aucun serveur) ---------- */
 const COLORS=['#e4572e','#17bebb','#d9a600','#76b041','#a05195','#ff7f50'];
 const ME={name:LS('racines.me')||'',color:COLORS[Math.random()*6|0]};
-const PV=2; // version du protocole live : un hôte et un invité de versions différentes ne se mélangent pas
+const PV=3; // version du protocole live (3 : les médias se récupèrent par morceaux) : un hôte et un invité de versions différentes ne se mélangent pas
 const pend=()=>{try{return JSON.parse(LS('racines.pend.'+(T?T.id:''))||'[]')}catch{return[]}},setPend=a=>T&&LS('racines.pend.'+T.id,JSON.stringify([...new Set(a)])); // fiches envoyées par cet invité, en attente de validation
 const live={peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false};
 const DID=LS('racines.id')||(()=>{const v=rid()+rid();LS('racines.id',v);return v})(); // identité de cet appareil
@@ -743,7 +799,7 @@ async function joinStart(code,name,quiet){await loadPeer();ME.name=name;LS('raci
   c.on('open',()=>{c.send({t:'hi',pv:PV,me:{name:ME.name,color:ME.color,sel,id:DID}});if(!live.quiet)toast('⏳ En attente de l’acceptation de l’hôte…')});
   c.on('data',m=>onMsg(m,c));c.on('close',()=>{if(live.peer){toast('Session terminée — ta copie reste sur cet appareil');leave()}})});
  peer.on('error',e=>{if(!live.quiet)toast(e.type==='peer-unavailable'?'Code introuvable : l’hôte est-il connecté ?':'Connexion impossible ('+e.type+')');leave()})}
-function leave(){if(live.peer)live.peer.destroy();LS('racines.sess','');Object.assign(live,{peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false});liveUI();render();gc()}
+function leave(){dl.q=[];dl.all=false;if(live.peer)live.peer.destroy();LS('racines.sess','');Object.assign(live,{peer:null,conns:[],host:false,code:'',peers:{},sent:0,dids:{},quiet:false});liveUI();render();gc()}
 async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
  if(live.host&&m.t!=='hi'&&!live.conns.includes(c))return;
  switch(m.t){
@@ -753,7 +809,7 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
   if(!known&&!confirm(`${me.name} demande à rejoindre la session et recevra une copie de « ${T.name} » (en tant qu’Invité : lecture seule, tu pourras changer son rôle ensuite). Accepter ?`)){c.close();return}
   if(did)for(const [k,d] of Object.entries(live.dids))if(d===did){const old=live.conns.find(x=>x.peer===k);live.conns=live.conns.filter(x=>x!==old);delete live.peers[k];delete live.dids[k];if(old)old.close()} // même appareil qui revient : on remplace l'ancienne connexion
   live.conns.push(c);live.peers[c.peer]={...me,role:known&&known.role in RK?known.role:'guest'};
-  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',pv:PV,tree:await outTree(T)});c.send({t:'pend',pids:(T.tickets||[]).filter(x=>did&&x.did===did).map(x=>x.pid)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
+  if(did){live.dids[c.peer]=did;R[did]={name:me.name,role:live.peers[c.peer].role};saveReg(R)}c.send({t:'tree',pv:PV,tree:wire(T)});c.send({t:'pend',pids:(T.tickets||[]).filter(x=>did&&x.did===did).map(x=>x.pid)});bcastPeers();liveUI();render();toast(`👋 ${me.name} a rejoint`);break}
  case'old':{if(!live.host){toast('Ta version de l’appli est trop ancienne : recharge la page (Ctrl+F5) puis rejoins à nouveau');leave()}break}
  case'pend':{if(!live.host&&T)setPend([...(m.pids||[]).filter(x=>typeof x==='string'),...(live.sentPids||[])]);render();break}
  case'tkres':{if(live.host||!T)return;setPend(pend().filter(x=>x!==m.pid));live.sentPids=(live.sentPids||[]).filter(x=>x!==m.pid);const q=get(m.pid);toast(m.ok?`✅ Ta modification de « ${q?nm(q):'une fiche'} » a été validée`:`❌ Ta modification de « ${q?nm(q):'une fiche'} » a été refusée`);render();break}
@@ -763,19 +819,21 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
   r.su=Object.fromEntries(Object.entries(r.persons).map(([k,p])=>[k,p.u]));if(l&&l.lastExport)r.lastExport=l.lastExport;
   T=r;hist=[];view='tree';cam=null;sel=null;await saveTree(T);
   live.sentPids=items.map(i=>i.after.id);if(items.length)setPend([...pend(),...live.sentPids]);
-  for(const it of items)c.send({t:'prop',item:{...it,after:await outP(it.after)}});
+  for(const it of items)c.send({t:'prop',item:it});
   if(items.length)toast(`🎫 ${items.length} de tes modification(s) hors-ligne ont été envoyées à l’hôte pour validation. Ta version précédente est gardée dans « Mes arbres ».`);
   render();break}
  case'prop':{if(!live.host||!live.conns.includes(c)||!m.item||!m.item.after||!m.item.after.id)return;
   const after=normP(await ingestP({...m.item.after})),did=live.dids[c.peer]||'',who=(live.peers[c.peer]||{}).name||'?';
   T.tickets=(T.tickets||[]).filter(x=>!(did&&x.did===did&&x.pid===after.id)); // un seul ticket par appareil et par fiche
-  T.tickets.push({id:rid(),who,did,at:now(),pid:after.id,after});saveTree(T);toast(`🎫 ${who} propose une modification`);render();ticketsUI();break}
- case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(await ingestP({...m.p}));if(!T)return;const l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;(T.su=T.su||{})[p.id]=p.u;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host)send(m,c);render();break}
+  T.tickets.push({id:rid(),who,did,at:now(),pid:after.id,after});saveTree(T);toast(`🎫 ${who} propose une modification`);render();ticketsUI();pullFrom(c,[after.photo,after.voice]);break}
+ case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(await ingestP({...m.p}));if(!T)return;const l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;(T.su=T.su||{})[p.id]=p.u;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host){send(m,c);pullFrom(c,[p.photo,p.voice])}render();break}
  case'm':{if(!T||!m.m||(live.host&&rankOf(c)<2))return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
  case'sel':{if(live.host&&live.peers[c.peer]){live.peers[c.peer].sel=typeof m.id==='string'?m.id:null;bcastPeers();render()}break}
  case'role':{if(live.host&&rankOf(c)>=2)setRole(m.to,m.role);break}
  case'kick':{if(live.host&&rankOf(c)>=2)kick(m.to);break}
  case'kicked':{if(!live.host){toast('Tu as été retiré de la session');leave()}break}
+ case'mget':serveMedia(c,m);break
+ case'mchunk':case'mgone':gotMedia(c,m);break
  case'peers':{if(!live.host&&m.peers){const b=myRole();live.peers=m.peers;if(myRole()!==b)toast(`Ton rôle : ${ROLE_LABEL[myRole()]}`);liveUI();render()}break}}}
 function setRole(key,role){if(!live.host||!live.peers[key]||key==='host'||!(role in RK))return;live.peers[key].role=role;const did=live.dids[key];if(did){const R=reg();if(R[did]){R[did].role=role;saveReg(R)}}bcastPeers();liveUI();render()}
 function liveUI(open){
@@ -787,11 +845,12 @@ function liveUI(open){
     if(raw&&!/^[A-Z0-9-]{6,24}$/.test(raw))return toast('Code : 6 à 24 caractères (lettres, chiffres, tiret)');await hostStart(raw||undefined)}
    else if(l==='join'){const c=($('#lcode',liveOv).value||'').trim().toUpperCase();if(!c)return toast('Entre le code');await joinStart(c,nm());liveUI()}
    else if(l==='copy'){await navigator.clipboard.writeText(location.href.split('#')[0]+'#join='+live.code);toast('🔗 Lien copié')}
-   else if(l==='leave')leave()}catch(err){toast(err.message)}})}
+   else if(l==='getall'){dl.fail.clear();dlAdd(needIds(),true);liveUI()}
+   else if(l==='leave')await tryLeave()}catch(err){toast(err.message)}})}
  if(!liveOv||!liveOv.isConnected)return;
  const on=!!live.peer,pre=typeof open==='string'?open:'';
  liveOv.innerHTML=`<div class=wz><div class=wt><span>📡 Session live</span><button class=x data-l=close>✕</button></div>`+(on?
-  `<p>Ton rôle : <b>${ROLE_LABEL[myRole()]}</b></p>${rank()>=2?`<p>Code invité : <b class=code>${esc(live.code)}</b></p><p><button data-l=copy>🔗 Copier le lien d’invitation</button></p>`:''}<h4>Participants</h4>${Object.entries(live.peers).map(([k,v])=>{const r=v.role in RK?v.role:'guest';return`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span class=dot style="background:${safeC(v.color)}"></span><span style="flex:1">${esc(v.name)}${k===myKey()?' (moi)':''}${k==='host'?' · hôte':''}</span>${rank()>=2&&k!=='host'?`<select data-role="${esc(k)}">${Object.entries(ROLE_LABEL).map(([rk,l])=>`<option value=${rk} ${rk===r?'selected':''}>${l}</option>`).join('')}</select>`:`<small>${ROLE_LABEL[r]}</small>`}${rank()>=2&&k!=='host'&&k!==myKey()?`<button class=x data-kick="${esc(k)}" title="Retirer de la session">✕</button>`:''}</div>`}).join('')||'<small>Connexion…</small>'}<p class=hint>Les modifications s’affichent en direct chez tout le monde. Chacun garde sa copie sur son appareil.${live.host?' Si tu quittes, la session s’arrête.':''}</p><button data-l=leave>Quitter la session</button>`
+  `<p>Ton rôle : <b>${ROLE_LABEL[myRole()]}</b></p>${rank()>=2?`<p>Code invité : <b class=code>${esc(live.code)}</b></p><p><button data-l=copy>🔗 Copier le lien d’invitation</button></p>`:''}<h4>Participants</h4>${Object.entries(live.peers).map(([k,v])=>{const r=v.role in RK?v.role:'guest';return`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span class=dot style="background:${safeC(v.color)}"></span><span style="flex:1">${esc(v.name)}${k===myKey()?' (moi)':''}${k==='host'?' · hôte':''}</span>${rank()>=2&&k!=='host'?`<select data-role="${esc(k)}">${Object.entries(ROLE_LABEL).map(([rk,l])=>`<option value=${rk} ${rk===r?'selected':''}>${l}</option>`).join('')}</select>`:`<small>${ROLE_LABEL[r]}</small>`}${rank()>=2&&k!=='host'&&k!==myKey()?`<button class=x data-kick="${esc(k)}" title="Retirer de la session">✕</button>`:''}</div>`}).join('')||'<small>Connexion…</small>'}${mediaPanel()}<p class=hint>Les modifications s’affichent en direct chez tout le monde. Chacun garde sa copie sur son appareil.${live.host?' Si tu quittes, la session s’arrête.':''}</p><button data-l=leave>Quitter la session</button>`
   :`<p class=hint>Édite l’arbre à plusieurs en direct. Les données circulent <b>d’appareil à appareil</b> (WebRTC) — rien n’est envoyé à GitHub. L’hôte valide chaque invité.</p><label>Ton prénom<input id=lname value="${esc(ME.name)}"></label>${T?`<label>Code d’invitation <small>(garde le même code = même lien pour tes proches à chaque session)</small><input id=lhc value="${esc(LS('racines.code.'+T.id)||'')}" placeholder="vide = code aléatoire" style="text-transform:uppercase"></label><p class=hint>6 à 24 caractères (lettres, chiffres, tiret). Choisis-en un difficile à deviner. L’hôte valide de toute façon chaque nouvel appareil.</p><p><button class=pri data-l=host>Héberger « ${esc(T.name)} »</button></p>`:''}<h4>Rejoindre une session</h4><input id=lcode placeholder="Code (ex. K3F9QZ)" value="${esc(pre)}" style="text-transform:uppercase"><p><button data-l=join>Rejoindre</button></p><p class=hint>En rejoignant, tu reçois une copie de l’arbre, stockée uniquement sur ton appareil.</p>`)+'</div>'}
 
 /* ---------- accueil et rappel de sauvegarde ---------- */

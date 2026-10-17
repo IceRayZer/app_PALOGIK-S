@@ -668,7 +668,7 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
    if(d.gone)st.push('• '+pl(d.gone,'personne du fichier a été supprimée depuis sur cet appareil : elle reste supprimée','personnes du fichier ont été supprimées depuis sur cet appareil : elles restent supprimées'));
    if(d.only)st.push('• '+pl(d.only,'personne de cet appareil n’est pas dans le fichier : elle est conservée','personnes de cet appareil ne sont pas dans le fichier : elles sont conservées'));
    if(!ch.length&&!st.length)return alert('Rien à importer : cet arbre est identique à celui de cet appareil.'+warn);
-   mode=await ask(`Cet arbre existe déjà sur cet appareil. Le fichier contient ${tot}.\n\nFUSIONNER (ajoute ce qui manque, garde la fiche la plus récente, ne retire rien) :\n${ch.length?ch.join('\n'):'• aucun changement'}${st.length?`\n\nCe qui reste tel quel :\n${st.join('\n')}`:''}\n\nREMPLACER : l’arbre de cet appareil devient exactement celui du fichier.${warn}`,
+   mode=await ask(`Cet arbre existe déjà sur cet appareil. Le fichier contient ${tot}.\n\n${ch.length?`FUSIONNER (ajoute ce qui manque, garde la fiche la plus récente, ne retire rien) :\n${ch.join('\n')}`:'Il n’y a rien à fusionner : cet appareil est déjà au moins aussi à jour que le fichier.'}${st.length?`\n\nCe qui reste tel quel :\n${st.join('\n')}`:''}\n\nREMPLACER : l’arbre de cet appareil devient exactement celui du fichier.${warn}`,
     [...(ch.length?[['merge','Fusionner','pri']]:[]),['replace','Remplacer par ce fichier','danger'],['','Annuler','']]);
    if(!mode)return;
    if(mode==='replace'){const loss=[];

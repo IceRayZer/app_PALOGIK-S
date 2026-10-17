@@ -10,7 +10,7 @@ const tx=async(m,f,st='trees')=>{const o=st==='media'?media:st==='parts'?parts:t
 const allTrees=()=>tx('readonly',s=>s.getAll()),saveTree=async t=>{saves++;trees[t.id]=structuredClone(t)};
 const toUrl=async(b,t)=>'data:'+t+';base64,'+Buffer.from(b).toString('base64');
 const confirm=()=>true;
-`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('async function readZip',"$('#imp').addEventListener")+`
+`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('async function readZip',"$('#imp').addEventListener")+`
 ;(async()=>{
  const id=async x=>sha(Buffer.from(x)),sameId=/^[0-9a-f]{64}$/;
  // --- migration : ancien format (médias dans les fiches, y compris dans un ticket) -> médias à part, sans perte, relançable
@@ -80,4 +80,7 @@ const confirm=()=>true;
  live.conns=[mkConn()];live.peer={};toasts.length=0;dlAdd(needIds(),true);
  for(let i=0;i<200&&(dl.total||dl.act.size);i++)await new Promise(r=>setTimeout(r,10));
  assert.ok(MC.has(bid),'média récupéré par la file');assert.ok(dl.fail.has(other),'introuvable noté');assert.deepStrictEqual(needIds(),[other]);assert.strictEqual(dl.total,0,'compteurs remis à zéro');live.peer=null;live.conns=[];
+ // décompte des tickets du bandeau de l'hôte : ajout = fiche inconnue, suppression = fiche supprimée, modification = fiche existante
+ T={persons:{a:{id:'a'}},tickets:[{pid:'a',after:{}},{pid:'zz',after:{}},{pid:'a',after:{del:true}},{pid:'a',after:{}}]};
+ assert.deepStrictEqual(tkCounts(),{add:1,mod:2,del:1});
  console.log('test-zip OK')})().catch(e=>{console.error('ECHEC',e.stack||e.message);process.exit(1)})`);

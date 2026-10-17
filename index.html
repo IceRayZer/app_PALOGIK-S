@@ -121,6 +121,7 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 .wl-note{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px;border-radius:14px;background:var(--bg);font-size:12.5px;line-height:1.35;color:var(--mut)}
 .wl-note i{font-style:normal;font-size:18px;line-height:1.2}.wl-note p{margin:0}
 .wl-tip{background:#ffe9a8;color:#4a3b00;font-size:13.5px;margin-bottom:14px}.wl-tip b{font-weight:700}
+.wz.red{border:3px solid #c0392b}.wz.red>p:first-child{color:#8e1b10;font-weight:600}
 .imp-btns{display:grid;gap:8px}.imp-btns button{padding:12px;border-radius:12px;font-weight:700}
 .imp-btns .danger{border-color:#c0392b;color:#c0392b}
 .av{position:relative}.mdot{position:absolute;right:-3px;bottom:-3px;font-style:normal;font-size:11px;line-height:1;background:var(--card);border:1px solid var(--line);border-radius:50%;padding:2px}.av.lg .mdot{font-size:16px}
@@ -554,6 +555,7 @@ function render(){
  const mn=$('#mn'),bn=$('#bn');
  if(!T){popId=null;popup();bn.innerHTML='';mn.innerHTML=homeView();return}
  bn.innerHTML=!bnHide&&P().length&&(!T.lastExport||T.updated>T.lastExport)?`<div class=banner><span>💾 Sauvegarde non exportée (${T.lastExport?'dernière : '+new Date(T.lastExport).toLocaleDateString('fr-FR'):'jamais'}) — tout est stocké sur cet appareil uniquement.</span><button data-act=export>Exporter tout l’arbre</button><button class=x data-act=bnclose>✕</button></div>`:'';
+ if(T.tickets&&T.tickets.length&&rank()>=2&&!(live.peer&&!live.host)){const c=tkCounts();bn.innerHTML=`<div class=banner style="background:#ffd9e0;color:#5a1020"><span>🎫 ${[c.mod&&pl(c.mod,'modification','modifications'),c.add&&pl(c.add,'ajout','ajouts'),c.del&&pl(c.del,'suppression','suppressions')].filter(Boolean).join(' · ')} à valider</span><button data-act=tickets>Voir</button></div>`+bn.innerHTML}
  if(dl.total)bn.innerHTML=`<div class=banner style="background:#dff3e4;color:#10351c"><span id=dlb>⬇️ Médias : ${dl.done} / ${dl.total}</span></div>`+bn.innerHTML;
  {const pn=live.peer&&!live.host?pend().length:0;if(pn)bn.innerHTML=`<div class=banner style="background:#dbeafe;color:#10213f"><span>⏳ ${pn} de tes modification(s) sont en attente de validation par l’hôte. Tu vois ici la version de l’hôte ; tu peux utiliser la session normalement.</span></div>`+bn.innerHTML}
  let body;
@@ -637,8 +639,8 @@ ATTENTION : si tu modifies un media hors de Racines (recadrage, retouche, simple
 Ces informations suffisent pour reconstruire un arbre dans n'importe quel outil, meme si Racines ne fonctionne plus.
 `;
 const sha=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',b))].map(x=>x.toString(16).padStart(2,'0')).join('');
-const missingMedia=()=>new Set(Object.values(T.persons).flatMap(p=>MK.map(k=>p[k])).filter(id=>id&&!MC.has(id))).size;
-async function buildZip(){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(T))),media={},dirs=new Set(),files=[],miss=missingMedia();
+const missingMedia=(t=T)=>new Set(Object.values(t.persons).flatMap(p=>MK.map(k=>p[k])).filter(id=>id&&!MC.has(id))).size;
+async function buildZip(t=T){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(t))),media={},dirs=new Set(),files=[],miss=missingMedia(t);
  if(miss&&!confirm(`${pl(miss,'média manque','médias manquent')} sur cet appareil : ${miss>1?'ils ne seront':'il ne sera'} pas dans l’export. Exporter quand même ?`))return null;
  for(const p of Object.values(tree.persons)){if(!p.photo&&!p.voice)continue;
   const y=/^\d{4}/.test(p.birth)?p.birth.slice(0,4):'sans-date',base=`${fname(`${p.first} ${p.last}`)}_${y}`,dir=dirs.has(base)?`${base}-${p.id}`:base,d=(p.u?new Date(p.u):new Date()).toISOString().slice(0,10);dirs.add(dir);
@@ -646,9 +648,21 @@ async function buildZip(){const day=new Date().toISOString().slice(0,10),tree=JS
    const b=new Uint8Array(await(await fetch(m.url)).arrayBuffer()),mime=m.type,path=`${dir}/${dir}_${type}_${d}.${EXT[mime.split(';')[0]]||mime.split(';')[0].split('/')[1].replace(/\+.*/,'')}`;
    media[id]={file:path,type:mime,size:b.length};files.push([path,b])}}
  const enc=new TextEncoder();
- return zip([['arbre.json',enc.encode(JSON.stringify({app:'racines',v:2,tree,media},null,1))],['LISEZ-MOI.txt',enc.encode(README(T,day))],...files])}
-const zipName=()=>`${slug(T.name)}-${new Date().toISOString().slice(0,10)}.zip`;
+ return zip([['arbre.json',enc.encode(JSON.stringify({app:'racines',v:2,tree,media},null,1))],['LISEZ-MOI.txt',enc.encode(README(t,day))],...files])}
+const zipName=(t=T)=>`${slug(t.name)}-${new Date().toISOString().slice(0,10)}.zip`;
 const markExported=()=>{bnHide=true;T.lastExport=now();saveTree(T);render()};
+async function downloadTree(t){const z=await buildZip(t);if(!z)return false;const a=document.createElement('a');a.href=URL.createObjectURL(z);a.download=zipName(t);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);t.lastExport=now();await saveTree(t);return true}
+async function saveAll(){const L=(T?[T]:await allTrees()).filter(t=>!/\(avant (session|fusion)\)$/.test(t.name));if(!L.length)return toast('Tu n’as pas encore d’arbre à sauvegarder');
+ for(const t of L){await downloadTree(t);await new Promise(r=>setTimeout(r,500))}render()}
+// avertissements : la sauvegarde se fait depuis la fenêtre même, qui reste ouverte ensuite
+async function warnJoin(){if(!T&&!(await allTrees()).length)return true; // rien à perdre : pas d'avertissement
+ const m0='Avant de rejoindre, fais une sauvegarde complète de ton arbre.\nAprès la session, ton arbre prendra la version de la session.';let m=m0;
+ for(;;){const a=await ask(m,[['save','💾 Sauvegarder mon arbre','pri'],['go','Rejoindre',''],['','Annuler','']]);if(a==='save'){await saveAll();m='✅ Sauvegarde exportée.\n\n'+m0;continue}return a==='go'}}
+async function warnHost(){const m0='Avant d’inviter des personnes, fais une sauvegarde complète de l’arbre.\nSi des modifications arrivent pendant la session, tu pourras réimporter ta sauvegarde pour revenir à ta version d’avant.';let m=m0;
+ for(;;){const a=await ask(m,[['save','💾 Sauvegarder l’arbre','pri'],['go','Héberger',''],['','Annuler','']],'red');if(a==='save'){await saveAll();m='✅ Sauvegarde exportée.\n\n'+m0;continue}return a==='go'}}
+async function arrivalMedia(){const n=needIds().length;if(!n)return; // arrivée d'un invité : un total, jamais la liste détaillée
+ if(await ask(`Il manque ${pl(n,'média','médias')} à ton arbre. Voulez-vous tout récupérer ?`,[['y','Oui, tout récupérer','pri'],['','Non, plus tard','']])==='y'){dl.fail.clear();dlAdd(needIds(),true)}}
+const tkCounts=()=>{const c={add:0,mod:0,del:0};for(const t of T.tickets||[])t.after.del?c.del++:get(t.pid)?c.mod++:c.add++;return c};
 const CAN_SHARE=(()=>{try{return!!(navigator.canShare&&navigator.canShare({files:[new File([],'a.zip',{type:'application/zip'})]}))}catch{return false}})();
 const ACT={
  home:goHome,
@@ -657,7 +671,7 @@ const ACT={
  newTree(){treeWizard({name:'',family:'',origin:'',author:ME.name,about:''})},
  settings(){treeWizard({name:T.name,family:T.family,origin:T.origin,author:T.author,about:T.about},true)},
  import(){$('#imp').click()},
- async export(){try{const z=await buildZip();if(!z)return;const a=document.createElement('a');a.href=URL.createObjectURL(z);a.download=zipName();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);markExported();toast('💾 Arbre exporté'+(matchMedia('(pointer:coarse)').matches?' — supprime l’ancien fichier à la main':''))}catch(e){toast('Export impossible : '+e.message)}},
+ async export(){try{if(!await downloadTree(T))return;bnHide=true;render();toast('💾 Arbre exporté'+(matchMedia('(pointer:coarse)').matches?' — supprime l’ancien fichier à la main':''))}catch(e){toast('Export impossible : '+e.message)}},
  async share(){try{const z=await buildZip();if(!z)return;await navigator.share({files:[new File([z],zipName(),{type:'application/zip'})],title:T.name});markExported()}catch(e){if(e.name!=='AbortError')toast('Partage impossible : utilise « Exporter tout l’arbre »')}}, // ponytail: taille max acceptée par WhatsApp/Mail à tester sur téléphone
  view({v}){view=v;render()},
  add(){openPerson()},
@@ -680,11 +694,13 @@ const ACT={
  tickets(){tkOpen=null;ticketsUI(true)},
  tkclose(){if(tkOv){tkOv.remove();tkOv=null}},
  tkopen({id}){tkOpen=tkOpen===id?null:id;ticketsUI()},
- tkok({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;const cu=get(t.pid);if(cu&&cu.u>t.at&&!confirm('⚠️ Cette fiche a été modifiée depuis l’arrivée de '+t.who+' : valider écrasera ces changements récents. Continuer ?'))return;
+ tkok({id}){if(live.peer&&!live.host)return; // validation : l'hôte seul
+  const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;const cu=get(t.pid);if(cu&&cu.u>t.at&&!confirm('⚠️ Cette fiche a été modifiée depuis l’arrivée de '+t.who+' : valider écrasera ces changements récents. Continuer ?'))return;
   if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.`))return;
   T.tickets=T.tickets.filter(x=>x.id!==id);tell(t,true);
   recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
- tkno({id}){const t=(T.tickets||[]).find(x=>x.id===id);if(!t||!confirm(`Refuser les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nCe ticket sera supprimé, l’arbre actuel reste inchangé.`))return;
+ tkno({id}){if(live.peer&&!live.host)return;
+  const t=(T.tickets||[]).find(x=>x.id===id);if(!t||!confirm(`Refuser les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nCe ticket sera supprimé, l’arbre actuel reste inchangé.`))return;
   T.tickets=T.tickets.filter(x=>x.id!==id);saveTree(T);tell(t,false);render();ticketsUI();toast('❌ Ticket refusé')},
  async playalt({id}){const p=get(id);if(!p||!p.voice)return; // lecture par Web Audio (autre chemin de sortie, volume x2)
   try{const ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();const buf=await ac.decodeAudioData(await(await fetch(blobUrl(p.voice))).arrayBuffer()),s=ac.createBufferSource(),g=ac.createGain();g.gain.value=2;s.buffer=buf;s.connect(g);g.connect(ac.destination);s.start();s.onended=()=>ac.close()}catch{toast('Lecture impossible sur cet appareil')}},
@@ -728,7 +744,7 @@ async function storeMedia(ps,byId,meta,l,keep){ // les médias du fichier sont r
  for(const p of ps)for(const k of MK){const id=p[k];if(!id)continue;
   if(byId.has(id))await putBytes(id,byId.get(id),String((meta[id]||{}).type||''));
   else if(!MC.has(id))p[k]=keep&&l&&l.persons[p.id]&&l.persons[p.id][k]||''}}
-const ask=(msg,btns)=>new Promise(ok=>{const o=el(`<div class=ov><div class=wz role=dialog aria-modal=true><p style="white-space:pre-line;margin:0 0 14px">${esc(msg)}</p><div class=imp-btns>${btns.map(([k,t,c])=>`<button data-k="${k}" class="${c}">${esc(t)}</button>`).join('')}</div></div></div>`);
+const ask=(msg,btns,cls='')=>new Promise(ok=>{const o=el(`<div class=ov><div class="wz ${cls}" role=dialog aria-modal=true><p style="white-space:pre-line;margin:0 0 14px">${esc(msg)}</p><div class=imp-btns>${btns.map(([k,t,c])=>`<button data-k="${k}" class="${c}">${esc(t)}</button>`).join('')}</div></div></div>`);
  const end=v=>{o.remove();ok(v)};o._close=()=>end(''); // Échap = annuler
  o.onclick=e=>{const b=e.target.closest('[data-k]');if(b||e.target===o)end(b?b.dataset.k:'')};document.body.append(o)});
 $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
@@ -815,13 +831,13 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
  case'tkres':{if(live.host||!T)return;setPend(pend().filter(x=>x!==m.pid));live.sentPids=(live.sentPids||[]).filter(x=>x!==m.pid);const q=get(m.pid);toast(m.ok?`✅ Ta modification de « ${q?nm(q):'une fiche'} » a été validée`:`❌ Ta modification de « ${q?nm(q):'une fiche'} » a été refusée`);render();break}
  case'tree':{if(live.host)return;if((m.pv||1)<PV){toast('L’hôte utilise une ancienne version : il doit recharger sa page (Ctrl+F5) pour que les tickets fonctionnent');leave();return} // l'hôte ne reçoit jamais d'arbre complet : les ajouts d'un invité arrivent sous forme de tickets
   for(const p of Object.values(m.tree&&m.tree.persons||{}))if(p&&typeof p==='object')await ingestP(p);const r=norm(m.tree),l=T&&T.id===r.id?T:(await allTrees()).find(x=>x.id===r.id),items=l?proposals(l,r):[];
-  if(items.length)await saveTree({...l,id:l.id+'-av-'+now().toString(36),name:l.name+' (avant fusion)',su:undefined,tickets:[]}); // copie de sécurité de la version locale
+  if(l&&!live.quiet)await saveTree({...l,id:l.id+'-av-'+now().toString(36),name:l.name+' (avant session)',su:undefined,tickets:[]}); // copie de sécurité de l'arbre personnel, dans tous les cas (sauf reprise après rechargement : la session est déjà la même)
   r.su=Object.fromEntries(Object.entries(r.persons).map(([k,p])=>[k,p.u]));if(l&&l.lastExport)r.lastExport=l.lastExport;
   T=r;hist=[];view='tree';cam=null;sel=null;await saveTree(T);
   live.sentPids=items.map(i=>i.after.id);if(items.length)setPend([...pend(),...live.sentPids]);
   for(const it of items)c.send({t:'prop',item:it});
   if(items.length)toast(`🎫 ${items.length} de tes modification(s) hors-ligne ont été envoyées à l’hôte pour validation. Ta version précédente est gardée dans « Mes arbres ».`);
-  render();break}
+  render();arrivalMedia();break}
  case'prop':{if(!live.host||!live.conns.includes(c)||!m.item||!m.item.after||!m.item.after.id)return;
   const after=normP(await ingestP({...m.item.after})),did=live.dids[c.peer]||'',who=(live.peers[c.peer]||{}).name||'?';
   T.tickets=(T.tickets||[]).filter(x=>!(did&&x.did===did&&x.pid===after.id)); // un seul ticket par appareil et par fiche
@@ -842,8 +858,8 @@ function liveUI(open){
   liveOv.addEventListener('click',async e=>{const kb=e.target.closest('[data-kick]');if(kb)return doKick(kb.dataset.kick);const b=e.target.closest('[data-l]');if(!b)return;const l=b.dataset.l,nm=()=>($('#lname',liveOv).value||'').trim()||'Anonyme';
    try{if(l==='close'){liveOv.remove();liveOv=null}
    else if(l==='host'){ME.name=nm();LS('racines.me',ME.name);const raw=($('#lhc',liveOv).value||'').trim().toUpperCase();
-    if(raw&&!/^[A-Z0-9-]{6,24}$/.test(raw))return toast('Code : 6 à 24 caractères (lettres, chiffres, tiret)');await hostStart(raw||undefined)}
-   else if(l==='join'){const c=($('#lcode',liveOv).value||'').trim().toUpperCase();if(!c)return toast('Entre le code');await joinStart(c,nm());liveUI()}
+    if(raw&&!/^[A-Z0-9-]{6,24}$/.test(raw))return toast('Code : 6 à 24 caractères (lettres, chiffres, tiret)');if(await warnHost())await hostStart(raw||undefined)}
+   else if(l==='join'){const c=($('#lcode',liveOv).value||'').trim().toUpperCase();if(!c)return toast('Entre le code');if(await warnJoin())await joinStart(c,nm());liveUI()}
    else if(l==='copy'){await navigator.clipboard.writeText(location.href.split('#')[0]+'#join='+live.code);toast('🔗 Lien copié')}
    else if(l==='getall'){dl.fail.clear();dlAdd(needIds(),true);liveUI()}
    else if(l==='leave')await tryLeave()}catch(err){toast(err.message)}})}
@@ -875,7 +891,7 @@ setInterval(()=>{if(!T||!P().length||document.hidden||$('.ov')||/INPUT|TEXTAREA|
  HOME=await allTrees();render();gc();
  const m=location.hash.match(/join=([A-Za-z0-9]+)/);
  if(m){history.replaceState(null,'',location.pathname+location.search);const code=m[1].toUpperCase();
-  if(ME.name)joinStart(code,ME.name).catch(e=>toast(e.message)); // appareil déjà venu : on entre directement, sans formulaire
+  if(ME.name)warnJoin().then(ok=>ok&&joinStart(code,ME.name)).catch(e=>toast(e.message)); // appareil déjà venu : on entre directement, sans formulaire
   else liveUI(code)}
  else{const s=LS('racines.sess');if(s&&ME.name)joinStart(s,ME.name,true).catch(()=>{})} // rechargement : on reprend la session en cours
  welcome()

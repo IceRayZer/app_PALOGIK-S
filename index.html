@@ -121,6 +121,8 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 .wl-note{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px;border-radius:14px;background:var(--bg);font-size:12.5px;line-height:1.35;color:var(--mut)}
 .wl-note i{font-style:normal;font-size:18px;line-height:1.2}.wl-note p{margin:0}
 .wl-tip{background:#ffe9a8;color:#4a3b00;font-size:13.5px;margin-bottom:14px}.wl-tip b{font-weight:700}
+.imp-btns{display:grid;gap:8px}.imp-btns button{padding:12px;border-radius:12px;font-weight:700}
+.imp-btns .danger{border-color:#c0392b;color:#c0392b}
 @keyframes wlup{from{transform:translateY(24px);opacity:0}}
 @media(prefers-reduced-motion:reduce){.wl .wz,.wl-chips li,.wl-hero span{animation:none}}
 @keyframes pop{from{transform:translateY(12px) scale(.97);opacity:0}}
@@ -644,6 +646,12 @@ async function importDiff(l,o,byId){ // ce que l'import va changer sur l'arbre l
    const x=await fid(lp&&lp[k]),y=p[k]||'';if(x!==y)d[!x?'ma':!y?'mr':'mm']++}}
  for(const [id,p] of Object.entries(l.persons))if(!p.del&&!(id in o.tree.persons))d.only++;
  return d}
+async function fillMedia(ps,byId,meta,l,keep){ // remplace les empreintes par les données des médias ; keep : un média absent du fichier garde celui de l'appareil (fusion), sinon il reste vide (remplacement)
+ for(const p of ps)for(const k of ['photo','voice']){const id=p[k];if(!id)continue;
+  p[k]=byId.has(id)?await toUrl(byId.get(id),String((meta[id]||{}).type||'')):keep&&l&&l.persons[p.id]&&l.persons[p.id][k]||''}}
+const ask=(msg,btns)=>new Promise(ok=>{const o=el(`<div class=ov><div class=wz role=dialog aria-modal=true><p style="white-space:pre-line;margin:0 0 14px">${esc(msg)}</p><div class=imp-btns>${btns.map(([k,t,c])=>`<button data-k="${k}" class="${c}">${esc(t)}</button>`).join('')}</div></div></div>`);
+ const end=v=>{o.remove();ok(v)};o._close=()=>end(''); // Échap = annuler
+ o.onclick=e=>{const b=e.target.closest('[data-k]');if(b||e.target===o)end(b?b.dataset.k:'')};document.body.append(o)});
 $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  let o,z;
  try{z=await readZip(await f.arrayBuffer());const j=z.get('arbre.json');if(!j)throw 0;o=JSON.parse(new TextDecoder().decode(j));if(o.app!=='racines'||o.v!==2||!o.tree||!o.tree.id||typeof o.tree.persons!=='object')throw 0}
@@ -652,18 +660,27 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
   for(const [n,b] of z)if(n!=='arbre.json'&&n!=='LISEZ-MOI.txt')byId.set(await sha(b),b);
   const ps=Object.values(o.tree.persons),want=new Set(ps.flatMap(p=>[p.photo,p.voice]).filter(Boolean)),miss=[...want].filter(id=>!byId.has(id)).length;
   HOME=await allTrees();const l=HOME.find(t=>t.id===o.tree.id),meta=o.media||{},np=ps.filter(p=>!p.del).length,tot=`${pl(np,'personne','personnes')} et ${pl(want.size,'média','médias')}`,warn=miss?`\n\n⚠️ ${pl(miss,'média manque','médias manquent')} ou ${miss>1?'sont abîmés':'est abîmé'} dans ce fichier.`:'';
-  let msg=`Cet arbre contient ${tot}. Importer ?`+warn;
-  if(l){const d=await importDiff(l,o,byId),ch=[[d.add,'personne ajoutée','personnes ajoutées'],[d.upd,'personne modifiée','personnes modifiées'],[d.del,'personne supprimée','personnes supprimées'],[d.ma,'média ajouté','médias ajoutés'],[d.mm,'média modifié','médias modifiés'],[d.mr,'média retiré','médias retirés']].filter(x=>x[0]).map(([n,a,b])=>'• '+pl(n,a,b)),st=[];
+  let mode='merge';
+  if(!l){if(!confirm(`Cet arbre contient ${tot}. Importer ?`+warn))return}
+  else{const d=await importDiff(l,o,byId),st=[],ch=[[d.add,'personne ajoutée','personnes ajoutées'],[d.upd,'personne modifiée','personnes modifiées'],[d.del,'personne supprimée','personnes supprimées'],[d.ma,'média ajouté','médias ajoutés'],[d.mm,'média modifié','médias modifiés'],[d.mr,'média retiré','médias retirés']].filter(x=>x[0]).map(([n,a,b])=>'• '+pl(n,a,b));
    if(d.info)ch.push('• Les informations de l’arbre (nom, famille…) seront mises à jour');
    if(d.newer)st.push('• '+pl(d.newer,'personne a été modifiée plus récemment sur cet appareil : sa version actuelle est gardée','personnes ont été modifiées plus récemment sur cet appareil : leur version actuelle est gardée'));
    if(d.gone)st.push('• '+pl(d.gone,'personne du fichier a été supprimée depuis sur cet appareil : elle reste supprimée','personnes du fichier ont été supprimées depuis sur cet appareil : elles restent supprimées'));
    if(d.only)st.push('• '+pl(d.only,'personne de cet appareil n’est pas dans le fichier : elle est conservée','personnes de cet appareil ne sont pas dans le fichier : elles sont conservées'));
-   const keep=st.length?`Ce qui reste tel quel :\n${st.join('\n')}`:'';
-   if(!ch.length)return alert('Rien à importer : cet arbre est déjà à jour sur cet appareil.'+(keep?'\n\n'+keep:'')+warn);
-   msg=`Cet arbre existe déjà sur cet appareil. Le fichier contient ${tot}.\n\nCe qui va changer :\n${ch.join('\n')}`+(keep?'\n\n'+keep:'')+'\n\nImporter ?'+warn}
-  if(!confirm(msg))return;
+   if(!ch.length&&!st.length)return alert('Rien à importer : cet arbre est identique à celui de cet appareil.'+warn);
+   mode=await ask(`Cet arbre existe déjà sur cet appareil. Le fichier contient ${tot}.\n\nFUSIONNER (ajoute ce qui manque, garde la fiche la plus récente, ne retire rien) :\n${ch.length?ch.join('\n'):'• aucun changement'}${st.length?`\n\nCe qui reste tel quel :\n${st.join('\n')}`:''}\n\nREMPLACER : l’arbre de cet appareil devient exactement celui du fichier.${warn}`,
+    [...(ch.length?[['merge','Fusionner','pri']]:[]),['replace','Remplacer par ce fichier','danger'],['','Annuler','']]);
+   if(!mode)return;
+   if(mode==='replace'){const loss=[];
+    if(d.only)loss.push('• '+pl(d.only,'personne qui n’est que sur cet appareil sera supprimée','personnes qui ne sont que sur cet appareil seront supprimées'));
+    if(d.newer)loss.push('• '+pl(d.newer,'modification plus récente faite sur cet appareil sera perdue','modifications plus récentes faites sur cet appareil seront perdues'));
+    if(d.gone)loss.push('• '+pl(d.gone,'suppression faite sur cet appareil sera annulée (la personne revient)','suppressions faites sur cet appareil seront annulées (les personnes reviennent)'));
+    if(l.tickets&&l.tickets.length)loss.push('• '+pl(l.tickets.length,'ticket en attente sera perdu','tickets en attente seront perdus'));
+    if(!confirm(`Remplacer l’arbre de cet appareil par le fichier ?\n\n${loss.length?`Ce qui sera perdu ou annulé :\n${loss.join('\n')}`:'Rien ne sera perdu sur cet appareil.'}\n\nCette action est définitive : exporte d’abord l’arbre actuel si tu veux le garder.`))return}}
+  await fillMedia(ps,byId,meta,l,mode==='merge');
   const r=norm(o.tree);
-  if(l){mergeTree(l,r);await saveTree(l);toast('Arbre fusionné avec la version existante')}else{await saveTree(r);toast('Arbre importé ✔')}
+  if(mode==='replace'){r.lastExport=now();await saveTree(r);toast('Arbre remplacé par le fichier ✔')} // l'arbre vient d'un export : rien à ré-exporter
+  else if(l){mergeTree(l,r);await saveTree(l);toast('Arbre fusionné avec la version existante')}else{await saveTree(r);toast('Arbre importé ✔')}
   await goHome()}catch(err){console.error(err);toast('Import impossible : '+err.message)}});
 
 /* ---------- live : WebRTC pair-à-pair via PeerJS (les données ne passent par aucun serveur) ---------- */

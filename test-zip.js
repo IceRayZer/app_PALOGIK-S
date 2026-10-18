@@ -4,13 +4,13 @@ const cut=(a,b)=>{const i=h.indexOf(a),j=h.indexOf(b,i);assert(i>=0&&j>i,'repèr
 const b64=x=>Buffer.from(x).toString('base64'),U=(m,x)=>`data:${m};base64,`+b64(x);
 eval(`
 const wire=t=>{const {tickets,su,...w}=t;return w};
-let T=null;const esc=x=>x,ticketsUI=()=>{};const live={peer:null,conns:[],dids:{}},ME={name:'t'};const send=()=>{};
+let T=null;const esc=x=>x,ticketsUI=()=>{},rank=()=>1,now=()=>Date.now();const live={peer:null,conns:[],dids:{}},ME={name:'t'};const send=()=>{};
 const trees={},media={},parts={};let puts=0,saves=0;const toasts=[];let renders=0;const toast=m=>toasts.push(m),render=()=>renders++,$=()=>null,$$=()=>[];const IDBKeyRange={bound:(a,b)=>({a,b})};
 const tx=async(m,f,st='trees')=>{const o=st==='media'?media:st==='parts'?parts:trees,r=f({getAll:g=>({result:Object.entries(o).filter(([k])=>!g||(k>=g.a&&k<=g.b)).map(([,v])=>structuredClone(v))}),put:v=>{o[v.k||v.id]=structuredClone(v);if(st==='media')puts++},delete:id=>{delete o[id]}});return r&&r.result};
 const allTrees=()=>tx('readonly',s=>s.getAll()),saveTree=async t=>{saves++;trees[t.id]=structuredClone(t)};
 const toUrl=async(b,t)=>'data:'+t+';base64,'+Buffer.from(b).toString('base64');
 const confirm=()=>true;
-`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('const MEDIA=','const resize=')+cut('async function readZip',"$('#imp').addEventListener")+`
+`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('const MEDIA=','const resize=')+cut('let hist=[];','/* ---------- assistant pas-à-pas')+cut('async function readZip',"$('#imp').addEventListener")+`
 ;(async()=>{
  const id=async x=>sha(Buffer.from(x)),sameId=/^[0-9a-f]{64}$/;
  // --- migration : ancien format (médias dans les fiches, y compris dans un ticket) -> médias à part, sans perte, relançable
@@ -86,6 +86,11 @@ const confirm=()=>true;
  tkFetch(tkt);assert.ok(tkBusy.has(bid)&&tkMed(tkt,bid).includes('Réception'));
  for(let i=0;i<200&&tkBusy.size;i++)await new Promise(r=>setTimeout(r,10));assert.ok(MC.has(bid)&&!tkBusy.size,'média du ticket récupéré chez l’invité');
  await delMedia(bid);live.conns=[];assert.ok(tkMed(tkt,bid).includes('non disponible'),'invité absent');live.dids={};
+ // annulation : restaure la fiche ; refusée si l'ancien média n'est plus sur l'appareil
+ T={persons:{a:{id:'a',parents:[],u:1,photo:ph,voice:''}},updated:0};hist.length=0;
+ recorded('modif',()=>{T.persons.a.photo=vo;T.persons.a.u=2});assert.strictEqual(T.persons.a.photo,vo);undo();assert.strictEqual(T.persons.a.photo,ph,'ancien média restauré');
+ T.persons.a.photo='9'.repeat(64);recorded('remplacement',()=>{T.persons.a.photo=ph;T.persons.a.u=5});
+ toasts.length=0;undo();assert.strictEqual(T.persons.a.photo,ph,'ancien média absent : annulation refusée');assert.ok(toasts.some(m=>m.includes('Impossible')));assert.strictEqual(hist.length,0);
  // formats : photo JPEG 1280 px à 80 %, son AAC mono 48 kbit/s, AAC préféré quand le navigateur sait l'enregistrer
  assert.deepStrictEqual(MEDIA,{photoPx:1280,photoQ:.8,audioBps:48000});
  assert.strictEqual(pickAudio(()=>true),'audio/mp4;codecs=mp4a.40.2');assert.strictEqual(pickAudio(x=>x.startsWith('audio/webm')),'audio/webm;codecs=opus');assert.strictEqual(pickAudio(()=>false),undefined);

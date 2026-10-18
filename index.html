@@ -317,6 +317,8 @@ let hist=[];
 const snapshot=()=>Object.fromEntries(Object.entries(T.persons).map(([k,p])=>[k,{...p,parents:[...p.parents]}]));
 function recorded(label,fn){const snap=snapshot();fn();const ids=Object.keys(T.persons).filter(id=>!snap[id]||snap[id].u!==T.persons[id].u);if(ids.length){hist.push({label,snap,ids});if(hist.length>30)hist.shift()}render()}
 function undo(){const h=hist.pop();if(!h||rank()<1)return;let t=now();
+ const lost=h.ids.some(id=>{const o=h.snap[id],c=T.persons[id];return o&&c&&MK.some(k=>o[k]!==c[k]&&lack(o[k]))}); // annuler un remplacement de média : seulement si l'ancien est encore sur l'appareil
+ if(lost)return toast('Impossible d’annuler : l’ancien média n’est plus sur cet appareil');
  for(const id of h.ids){const o=h.snap[id],c=T.persons[id],p=o?{...o,u:++t}:{...c,del:true,photo:'',voice:'',partner:'',u:++t};T.persons[id]=p;sendP(p)} // seules les fiches touchées par l'action sont restaurées
  T.updated=t;saveTree(T);render();toast('↩️ Annulé : '+h.label)}
 
@@ -375,21 +377,21 @@ function wizard({steps,d,title,edit,done,start}){
  ov.addEventListener('input',e=>{const t=e.target;if(t.name){if(t.name==='birth'||t.name==='death'){const f=fmtDateInput(t.value);if(f!==t.value)t.value=f}d[t.name]=t.value;rx()}
   if(t.classList.contains('flt')){const v=t.value.toLowerCase();$$('[data-n]',ov).forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
  ov.addEventListener('change',async e=>{const t=e.target;
-  if(t.type==='file'&&t.files[0]){const b=await resize(t.files[0]);if(b)d.photo=await putMedia(b);draw()}
+  if(t.type==='file'&&t.files[0]){if(d.photo&&!confirm('Êtes-vous sûr de vouloir remplacer ce média ?')){t.value='';return}const b=await resize(t.files[0]);if(b)d.photo=await putMedia(b);draw()}
   else if(t.classList.contains('dtn')&&t.value){d[t.dataset.for]=dispIn(t.value);draw()}});
  ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'&&e.target.type!=='date'){e.preventDefault();next()}});
  ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug],[data-rec],[data-rmv],[data-restore],[data-cal]');if(!t)return;const D=t.dataset;
   if(D.w==='close')closeW();
   else if(D.cal){const n=$(`.dtn[data-for=${D.cal}]`,ov);try{n.showPicker()}catch{n.click()}}
   else if(D.rec!==undefined){if(!rec&&d.voice){if(d.voice===v0&&!confirm('Un vocal est déjà enregistré. Le réenregistrer le REMPLACERA (tu pourras le retrouver ici tant que tu ne fermes pas cette fenêtre). Continuer ?'))return;d.voicePrev=d.voice}recToggle(d,draw)}
-  else if(D.rmv!==undefined){if(confirm('Supprimer ce vocal ?')){d.voicePrev=d.voice;d.voice='';draw()}}
+  else if(D.rmv!==undefined){if(confirm('Êtes-vous sûr de vouloir supprimer ce média ?')){d.voicePrev=d.voice;d.voice='';draw()}}
   else if(D.restore!==undefined){d.voice=d.voicePrev;draw()}else if(D.w==='back'){i--;draw()}else if(D.w==='next')next();else if(D.w==='fin')fin();
   else if(D.go){i=+D.go;draw()}
   else if(D.k){d[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;draw()}
   else if(D.pick==='parents'){const a=d.parents,j=a.indexOf(D.id);if(j>=0)a.splice(j,1);else if(a.length<2)a.push(D.id);else toast('Deux parents maximum');t.classList.toggle('on',a.includes(D.id));rx()}
   else if(D.pick==='partner'){d.partner=d.partner===D.id?'':D.id;$$('[data-pick=partner]',ov).forEach(x=>x.classList.toggle('on',x.dataset.id===d.partner));rx()}
   else if(D.dice!==undefined){d.storyQ=pick(Q,d.storyQ);draw()}
-  else if(D.rm!==undefined){d.photo='';draw()}
+  else if(D.rm!==undefined){if(confirm('Êtes-vous sûr de vouloir supprimer ce média ?')){d.photo='';draw()}}
   else if(D.sug){d.about=D.sug;draw()}});
  draw();return ov}
 
@@ -735,7 +737,7 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');
 document.addEventListener('input',e=>{if(e.target.id==='flt'){const v=e.target.value.toLowerCase();$$('.grid .card').forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'){const o=$$('.ov').pop();if(o){if(o._close)return o._close();o.remove();if(o===liveOv)liveOv=null;if(o===tkOv)tkOv=null;if(o.id==='pop')popId=null}}
- else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&T&&hist.length&&!$('.ov:not(#pop)')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo()}});
+ else if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'&&T&&hist.length&&!$('.ov:not(#pop)')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo()}});
 /* ---------- import : un seul format, le ZIP exporté par Racines ---------- */
 async function readZip(buf){ // -> Map chemin→Uint8Array ; fichiers stockés ou deflate ; l'intégrité se vérifie par l'empreinte SHA-256 des médias
  const v=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder(),out=new Map();let e=u8.length-22,tot=0;

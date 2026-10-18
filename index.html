@@ -126,6 +126,8 @@ svg .F{fill:var(--F)}svg .M{fill:var(--M)}svg .X{fill:var(--X)}svg .N{fill:var(-
 .imp-btns{display:grid;gap:8px}.imp-btns button{padding:12px;border-radius:12px;font-weight:700}
 .imp-btns .danger{border-color:#c0392b;color:#c0392b}
 .av{position:relative}.mdot{position:absolute;right:-3px;bottom:-3px;font-style:normal;font-size:11px;line-height:1;background:var(--card);border:1px solid var(--line);border-radius:50%;padding:2px}.av.lg .mdot{font-size:16px}
+.sv{margin:10px 0;padding:8px 10px;border:1px solid var(--line);border-radius:12px}.sv h4{margin:0 0 6px}.svb{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.sv video,.sv audio{display:block}
+.btn{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer}
 .mmiss{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0;padding:8px 10px;border-radius:12px;background:#ffe9a8;color:#4a3b00;font-size:13.5px}
 @keyframes wlup{from{transform:translateY(24px);opacity:0}}
 @media(prefers-reduced-motion:reduce){.wl .wz,.wl-chips li,.wl-hero span{animation:none}}
@@ -185,12 +187,14 @@ const tx=async(m,f,st='trees')=>{const d=await DB;return new Promise((ok,ko)=>{c
 const saveTree=t=>tx('readwrite',s=>s.put(t)),allTrees=()=>tx('readonly',s=>s.getAll()),dropTree=id=>tx('readwrite',s=>s.delete(id));
 
 /* ---------- médias : un fichier à part, identifié par l'empreinte SHA-256 de son contenu (même contenu = même identifiant) ---------- */
-const MK=['photo','voice'],MC=new Map(); // MC : id -> {type,url}, copie en mémoire pour l'affichage immédiat ; ponytail: tout est chargé au démarrage, à faire à l'ouverture de l'arbre si les médias deviennent très nombreux
+const SV=[['memo','Souvenir','souvenir'],['m10','À 10 ans','souvenir-10-ans'],['m20','À 20 ans','souvenir-20-ans'],['m60','À 60 ans et plus','souvenir-60-ans']]; // souvenirs : un fichier audio ou vidéo par emplacement ; une vidéo a aussi une miniature (champ + 't')
+const MK=['photo','voice',...SV.flatMap(([k])=>[k,k+'t'])],MC=new Map(),blankM=Object.fromEntries(MK.map(k=>[k,''])),
+ TYPE={photo:'photo',voice:'vocal',...Object.fromEntries(SV.flatMap(([k,,sl])=>[[k,sl],[k+'t',sl+'-miniature']]))}; // TYPE : mot utilisé dans le nom des fichiers exportés // MC : id -> {type,url}, copie en mémoire pour l'affichage immédiat ; ponytail: tout est chargé au démarrage, à faire à l'ouverture de l'arbre si les médias deviennent très nombreux
 const mu=id=>(MC.get(id)||{}).url||(typeof id==='string'&&id.startsWith('data:')?id:''),blobUrl=mu; // ancien format (média dans la fiche) affiché tel quel tant qu'il n'est pas migré
 const mkUrl=(buf,type)=>URL.createObjectURL(new Blob([buf],{type}));
-async function loadMedia(){for(const m of await tx('readonly',s=>s.getAll(),'media'))MC.set(m.id,{type:m.type,url:mkUrl(m.data,m.type)})}
+async function loadMedia(){for(const m of await tx('readonly',s=>s.getAll(),'media'))MC.set(m.id,{type:m.type,size:m.data.byteLength,url:mkUrl(m.data,m.type)})}
 async function putBytes(id,b,type){if(MC.has(id))return id; // déjà sur l'appareil : ni relu ni réécrit
- const data=b.slice().buffer;await tx('readwrite',s=>s.put({id,type,data}),'media');MC.set(id,{type,url:mkUrl(data,type)});return id}
+ const data=b.slice().buffer;await tx('readwrite',s=>s.put({id,type,data}),'media');MC.set(id,{type,size:data.byteLength,url:mkUrl(data,type)});return id}
 async function putMedia(blob){const b=new Uint8Array(await blob.arrayBuffer());return putBytes(await sha(b),b,blob.type)}
 const delMedia=async id=>{await tx('readwrite',s=>s.delete(id),'media');URL.revokeObjectURL(mu(id));MC.delete(id)};
 const refs=t=>{const r=new Set();for(const p of [...Object.values(t.persons||{}),...(t.tickets||[]).map(x=>x.after)])if(p)for(const k of MK)if(p[k])r.add(p[k]);return r};
@@ -260,6 +264,8 @@ async function tryLeave(){const n=live.host?0:needIds().length;
   if(a==='all'){dl.fail.clear();dlAdd(needIds(),true);return liveUI()}if(a!=='leave')return}
  leave()}
 const mediaPanel=()=>{if(live.host||!T)return'';const n=needIds().length;return`<h4>Médias</h4>${dl.total?`<p><span id=dlp>⬇️ Médias : ${dl.done} / ${dl.total}</span></p>`:n?`<p>Il reste <b>${n}</b> média${n>1?'s':''} à récupérer sur ton arbre.</p><p><button class=pri data-l=getall>⬇️ Tout récupérer</button></p>`:'<p class=hint>Tous les médias sont sur ton arbre ✓</p>'}`};
+const svView=(p,k,lb,sl)=>{const id=p[k],th=p[k+'t']; // souvenir : lecteur audio ou vidéo (la vidéo ne se charge qu'au clic de lecture)
+ return`<div class=sv><b>${esc(lb)}</b>${lack(id)?`<div class=mmiss>${th?'🎞️':'🎙️'} Non récupéré ${gb(id)}</div>`:`${th?`<video controls preload=none poster="${mu(th)}" src="${mu(id)}" style="width:100%;max-height:240px"></video>`:`<audio controls preload=metadata src="${mu(id)}" style="width:100%"></audio>`}<div><button data-act=expm data-id="${id}" data-pid="${p.id}" data-type=${sl}>💾 Exporter ce média</button></div>`}</div>`};
 const gb=id=>live.peer&&!live.host?`<button data-act=getm data-id="${id}">⬇️ Récupérer sur mon arbre</button><small data-mp="${id}"></small>`:'<small>absent de cet appareil</small>';
 
 /* ---------- dates ---------- */
@@ -289,12 +295,12 @@ const safeAudio=s=>/^data:audio\/[a-z0-9.+-]+(;codecs=[a-z0-9.,-]+)?;base64,[A-Z
 const safePhoto=s=>/^data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+$/.test(s)?s:'';
 const safeM=(s,legacy)=>typeof s==='string'&&(/^[0-9a-f]{64}$/.test(s)||legacy(s))?s:''; // empreinte SHA-256 (ou ancien format, conservé tel quel jusqu'à la migration)
 function normP(p){p.parents=Array.isArray(p.parents)?p.parents.filter(x=>typeof x==='string').slice(0,2):[];
- for(const k of ['first','last','maiden','birth','birthPlace','death','deathPlace','job','story','storyQ','gender','partner'])p[k]=typeof p[k]==='string'?p[k]:'';
- p.photo=safeM(p.photo||'',safePhoto);p.voice=safeM(p.voice||'',safeAudio);p.u=+p.u||0;p.alive=p.alive!==false;return p}
+ for(const k of ['first','last','maiden','birth','birthPlace','death','deathPlace','job','story','storyQ','gender','partner','narrator'])p[k]=typeof p[k]==='string'?p[k]:'';
+ for(const k of MK)p[k]=safeM(p[k]||'',k==='photo'?safePhoto:k==='voice'?safeAudio:()=>false);p.u=+p.u||0;p.alive=p.alive!==false;return p}
 const wire=t=>{const {tickets,su,...w}=t;return w}; // ce qui part vers les autres / dans l'export (sans tickets ni suivi de synchro)
 function norm(t){t.tickets=Array.isArray(t.tickets)?t.tickets.filter(x=>x&&x.after&&x.after.id).map(x=>({...x,who:String(x.who||'?').slice(0,30),after:normP(x.after)})):[];t.su=t.su&&typeof t.su==='object'?t.su:{};t.persons=t.persons&&typeof t.persons==='object'?t.persons:{};for(const p of Object.values(t.persons))normP(p);t.mu=+t.mu||0;t.updated=+t.updated||0;
  for(const k of ['name','family','origin','about','author'])t[k]=typeof t[k]==='string'?t[k]:'';return t}
-const DF=['first','last','maiden','gender','birth','birthPlace','death','deathPlace','job','story','photo','voice','partner'];
+const DF=['first','last','maiden','gender','birth','birthPlace','death','deathPlace','job','story','photo','voice','partner','narrator',...MK.filter(k=>k!=='photo'&&k!=='voice')];
 const same=(a,b)=>DF.every(k=>(a[k]||'')===(b[k]||''))&&(a.alive!==false)===(b.alive!==false)&&!!a.del===!!b.del&&a.parents.join()===b.parents.join();
 // fiches modifiées par l'invité depuis sa dernière synchro (su) et différentes de celles de l'hôte
 function proposals(l,r){const out=[];for(const [id,lp] of Object.entries(l.persons)){const hp=r.persons[id];
@@ -309,7 +315,7 @@ function setPartner(p,qid){const old=get(p.partner);if(old&&old.id!==qid&&old.pa
 function savePerson(d,id){const p=id?T.persons[id]:{id:rid(),partner:'',parents:[]};
  const par=d.parents.map(get).filter(Boolean).sort((a,b)=>(a.gender==='M'?0:1)-(b.gender==='M'?0:1)).map(x=>x.id);
  Object.assign(p,{first:d.first.trim(),last:d.last.trim(),maiden:d.gender==='F'||d.maiden?d.maiden.trim():'',gender:d.gender,birth:parseDate(d.birth),birthPlace:d.birthPlace.trim(),
-  alive:d.alive!==false,death:d.alive===false?parseDate(d.death):'',deathPlace:d.alive===false?d.deathPlace.trim():'',photo:d.photo,voice:d.voice,job:d.job.trim(),story:d.story.trim(),storyQ:d.storyQ,parents:par});
+  alive:d.alive!==false,death:d.alive===false?parseDate(d.death):'',deathPlace:d.alive===false?d.deathPlace.trim():'',...Object.fromEntries(MK.map(k=>[k,d[k]||''])),narrator:(d.narrator||'').trim(),job:d.job.trim(),story:d.story.trim(),storyQ:d.storyQ,parents:par});
  T.persons[p.id]=p;setPartner(p,d.partner);commit(p);return p}
 
 /* ---------- annulation : instantanés légers (les chaînes photo/vocal sont partagées, pas copiées) ---------- */
@@ -319,7 +325,7 @@ function recorded(label,fn){const snap=snapshot();fn();const ids=Object.keys(T.p
 function undo(){const h=hist.pop();if(!h||rank()<1)return;let t=now();
  const lost=h.ids.some(id=>{const o=h.snap[id],c=T.persons[id];return o&&c&&MK.some(k=>o[k]!==c[k]&&lack(o[k]))}); // annuler un remplacement de média : seulement si l'ancien est encore sur l'appareil
  if(lost)return toast('Impossible d’annuler : l’ancien média n’est plus sur cet appareil');
- for(const id of h.ids){const o=h.snap[id],c=T.persons[id],p=o?{...o,u:++t}:{...c,del:true,photo:'',voice:'',partner:'',u:++t};T.persons[id]=p;sendP(p)} // seules les fiches touchées par l'action sont restaurées
+ for(const id of h.ids){const o=h.snap[id],c=T.persons[id],p=o?{...o,u:++t}:{...c,del:true,...blankM,partner:'',u:++t};T.persons[id]=p;sendP(p)} // seules les fiches touchées par l'action sont restaurées
  T.updated=t;saveTree(T);render();toast('↩️ Annulé : '+h.label)}
 
 /* ---------- assistant pas-à-pas (arbre & personnes) ---------- */
@@ -327,27 +333,54 @@ const fn=d=>(d.first||'').trim().split(/\s+/)[0]||'cette personne';
 const ne=d=>d.gender==='F'?'née':d.gender==='M'?'né':'né(e)';
 const Q=['Quelle phrase répétait-il/elle tout le temps ?','Un plat ou une recette qu’on associe à cette personne ?','Ton plus beau souvenir avec elle/lui ?','Une passion, une manie, un petit travers attachant ?','Un objet qui lui appartenait et qu’on garde précieusement ?','Que raconte-t-on de lui/elle aux repas de famille ?','Un lieu où il/elle se sentait chez soi ?','Quel conseil donnait-il/elle ?'];
 const SUG=['Garder les histoires de mes grands-parents','Un cadeau pour la famille','Par pure curiosité','Retrouver une branche perdue'];
-const MEDIA={photoPx:1280,photoQ:.8,audioBps:48000}; // formats : photo JPEG 1280 px max à 80 %, son AAC mono 48 kbit/s
+const MEDIA={photoPx:1280,photoQ:.8,audioBps:48000,videoBps:1200000}; // formats : photo JPEG 1280 px max à 80 %, son AAC mono 48 kbit/s
 const AUDIO_TYPES=['audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm;codecs=opus','audio/webm'],pickAudio=ok=>AUDIO_TYPES.find(ok); // AAC (.m4a) d'abord ; WebM/Opus si le navigateur ne sait pas enregistrer en AAC
 const resize=f=>new Promise(ok=>{const i=new Image();i.onload=()=>{const s=Math.min(1,MEDIA.photoPx/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);c.toBlob(ok,'image/jpeg',MEDIA.photoQ)};i.onerror=()=>ok(null);i.src=URL.createObjectURL(f)});
-let rec=null; // enregistreur vocal en cours
-async function recToggle(d,draw){
+let rec=null,recF='',recKind='audio'; // enregistreur en cours, champ visé (voice, memo, m10…) et sorte (audio ou video)
+const LIM={voiceMs:120000,videoMs:60000,videoBytes:30e6,personBytes:50e6}; // limites : vocal 2 min, vidéo 1 min et 30 Mo, total par personne 50 Mo
+const VIDEO_TYPES=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp8,opus','video/webm'],pickVideo=ok=>VIDEO_TYPES.find(ok); // MP4 H.264 d'abord
+const personBytes=d=>MK.reduce((s,k)=>s+((MC.get(d[k])||{}).size||0),0);
+let spaceWarned=false;
+async function checkSpace(){try{const e=navigator.storage&&navigator.storage.estimate&&await navigator.storage.estimate(); // alerte à 70 % de l'espace disponible
+ if(e&&e.quota&&e.usage/e.quota>=.7&&!spaceWarned){spaceWarned=true;ask(`⚠️ L’espace de stockage de ton navigateur est utilisé à ${Math.round(e.usage*100/e.quota)} %.\nExporte tes arbres et supprime des médias avant d’en ajouter d’autres.`,[['','OK','pri']])}}catch{}}
+const thumbOf=src=>new Promise(ok=>{const v=document.createElement('video'),u=URL.createObjectURL(src),end=b=>{URL.revokeObjectURL(u);ok(b)};setTimeout(()=>end(null),4000); // miniature : une image tirée de la vidéo (320 px, ~20 Ko)
+ v.muted=true;v.playsInline=true;v.preload='auto';v.onloadeddata=()=>{v.currentTime=Math.min(1,(v.duration||2)/2)};
+ v.onseeked=()=>{const s=Math.min(1,320/Math.max(v.videoWidth,v.videoHeight)),c=document.createElement('canvas');c.width=v.videoWidth*s;c.height=v.videoHeight*s;c.getContext('2d').drawImage(v,0,0,c.width,c.height);c.toBlob(end,'image/jpeg',.7)};v.onerror=()=>end(null);v.src=u});
+async function addMedia(d,f,blob,isVideo){ // range un média dans le champ f, avec les limites de taille ; une vidéo reçoit sa miniature
+ if(isVideo&&blob.size>LIM.videoBytes)throw new Error('Vidéo trop lourde (30 Mo maximum)');
+ if(personBytes(d)-((MC.get(d[f])||{}).size||0)+blob.size>LIM.personBytes)throw new Error('Trop de médias pour cette personne (50 Mo maximum) : supprime-en un d’abord');
+ const th=isVideo?await thumbOf(blob):null;d[f]=await putMedia(blob);
+ if(SV.some(([k])=>k===f))d[f+'t']=th?await putMedia(th):'';
+ checkSpace()}
+const videoProblems=(file,info,txt)=>{const r=[]; // vidéo importée : MP4 H.264, 720p, 1 min, 30 Mo ; txt = octets du fichier lus en latin1 (vide si trop gros)
+ if(!(file.type==='video/mp4'||/\.(mp4|m4v)$/i.test(file.name||'')))r.push('le format doit être MP4');else if(txt&&(!/avc[13]/.test(txt)||/h(vc|ev)1/.test(txt)))r.push('le codec doit être H.264');
+ if(file.size>LIM.videoBytes)r.push('30 Mo maximum');if(info.d>LIM.videoMs/1000+.5)r.push('1 minute maximum');if(Math.min(info.w,info.h)>720)r.push('720p maximum');return r};
+const audioProblems=(file,info)=>{const r=[];if(info.d>LIM.voiceMs/1000+1)r.push('2 minutes maximum');if(file.size>LIM.videoBytes)r.push('30 Mo maximum');return r};
+const probe=(file,isV)=>new Promise(ok=>{const e=document.createElement(isV?'video':'audio'),u=URL.createObjectURL(file);e.preload='metadata';e.onloadedmetadata=()=>{URL.revokeObjectURL(u);ok({d:e.duration,w:e.videoWidth,h:e.videoHeight})};e.onerror=()=>{URL.revokeObjectURL(u);ok(null)};e.src=u});
+async function importMedia(d,f,file){ // fichier existant : gardé tel quel s'il respecte les formats, sinon on demande de le réduire avec l'appli Photos (pas de conversion dans le navigateur)
+ if(d[f]&&!confirm('Êtes-vous sûr de vouloir remplacer ce média ?'))return;
+ const isV=file.type.startsWith('video/');if(!isV&&!file.type.startsWith('audio/'))return alert('Choisis un fichier audio ou vidéo.');
+ const info=await probe(file,isV);if(!info)return alert('Ton navigateur ne peut pas lire ce fichier.');
+ const pb=isV?videoProblems(file,info,file.size<=LIM.videoBytes?new TextDecoder('latin1').decode(await file.arrayBuffer()):''):audioProblems(file,info);
+ if(pb.length)return alert(isV?`Cette vidéo n’est pas au bon format (${pb.join(', ')}).\n\nIl faut une vidéo MP4 H.264, 720p maximum, 1 minute et 30 Mo maximum. Réduis-la avec l’application Photos de ton téléphone, puis réessaie.`:`Ce son ne convient pas (${pb.join(', ')}).`);
+ try{await addMedia(d,f,file,isV)}catch(e){alert(e.message)}}
+async function recToggle(d,draw,f='voice',kind='audio'){
  if(rec){rec.stop();return}
- try{const st=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-  const mt=window.MediaRecorder&&pickAudio(t=>MediaRecorder.isTypeSupported(t)),
-   mr=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:MEDIA.audioBps}:undefined),ch=[];
-  if(mt&&!/mp4/.test(mt))toast('ℹ️ Ce navigateur n’enregistre pas en AAC (.m4a) : le vocal est en WebM, lu par la plupart des appareils récents.');
+ try{const st=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},...(kind==='video'?{video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}}}:{})});
+  const mt=window.MediaRecorder&&(kind==='video'?pickVideo:pickAudio)(t=>MediaRecorder.isTypeSupported(t)),
+   mr=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:MEDIA.audioBps,...(kind==='video'?{videoBitsPerSecond:MEDIA.videoBps}:{})}:undefined),ch=[];
+  if(mt&&!/mp4/.test(mt))toast(kind==='video'?'ℹ️ Ce navigateur ne filme pas en MP4 : la vidéo est en WebM, lue par la plupart des appareils récents.':'ℹ️ Ce navigateur n’enregistre pas en AAC (.m4a) : le vocal est en WebM, lu par la plupart des appareils récents.');
   // jauge de niveau : montre que le micro capte bien, et détecte un enregistrement muet
   const ac=new(window.AudioContext||window.webkitAudioContext)(),an=ac.createAnalyser(),buf=new Uint8Array(an.fftSize);let peak=0;
   ac.createMediaStreamSource(st).connect(an);
   const iv=setInterval(()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128)/128);peak=Math.max(peak,m);const l=$('#lvl');if(l)l.value=Math.min(1,m*3)},100);
-  const tm=setTimeout(()=>mr.state==='recording'&&mr.stop(),60000);rec=mr;
+  const tm=setTimeout(()=>mr.state==='recording'&&mr.stop(),kind==='video'?LIM.videoMs:LIM.voiceMs);rec=mr;recF=f;recKind=kind;
   mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
-  mr.onstop=()=>{clearTimeout(tm);clearInterval(iv);ac.close();st.getTracks().forEach(t=>t.stop());rec=null;
+  mr.onstop=async()=>{clearTimeout(tm);clearInterval(iv);ac.close();st.getTracks().forEach(t=>t.stop());rec=null;recF='';
    if(peak<.02)toast('⚠️ Aucun son capté : vérifie que le micro n’est pas coupé, puis réessaie');
-   putMedia(new Blob(ch,{type:mr.mimeType||mt||'audio/webm'})).then(id=>{d.voice=id;draw()})};
-  mr.start();draw()}catch{toast('Micro inaccessible : autorise-le dans le navigateur (un appel en cours peut aussi l’occuper)')}}
-const av=(p,c='')=>{const u=mu(p.photo);return`<span class="av ${c}" style="${u?`background-image:url(${u})`:''}">${u?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}${lack(p.photo)||lack(p.voice)?'<i class=mdot title="Média à récupérer">⬇️</i>':''}</span>`};
+   try{await addMedia(d,f,new Blob(ch,{type:mr.mimeType||mt||(kind==='video'?'video/webm':'audio/webm')}),kind==='video')}catch(e){toast(e.message)}draw()};
+  mr.start();draw();const pv=$('#prev');if(pv)pv.srcObject=st}catch{toast(kind==='video'?'Caméra ou micro inaccessible : autorise-les dans le navigateur (un appel en cours peut aussi les occuper)':'Micro inaccessible : autorise-le dans le navigateur (un appel en cours peut aussi l’occuper)')}}
+const av=(p,c='')=>{const u=mu(p.photo);return`<span class="av ${c}" style="${u?`background-image:url(${u})`:''}">${u?'':esc((p.first[0]||p.last[0]||'?').toUpperCase())}${MK.some(k=>lack(p[k]))?'<i class=mdot title="Média à récupérer">⬇️</i>':''}</span>`};
 
 const coarse=matchMedia('(pointer:coarse)').matches; // écran tactile : le clavier ne s'ouvre jamais tout seul
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -356,12 +389,12 @@ const fmtDateInput=v=>{if(/[^\d\/.\-\s]/.test(v)||/[\/.\-]/.test(v))return v;con
 const dateField=(n,v,ph)=>`<div class=dtw><input name=${n} inputmode=numeric autocomplete=off placeholder="${ph}" value="${esc(v)}"><button type=button class=cal data-cal=${n} aria-label="Choisir dans le calendrier">📅</button><input type=date class=dtn data-for=${n} tabindex=-1 aria-hidden=true></div>`;
 
 function wizard({steps,d,title,edit,done,start}){
- let i=0;const ov=el('<div class="ov wv"></div>'),v0=d.voice,seen=new Set(),vv=window.visualViewport;document.body.append(ov);
+ let i=0;const ov=el('<div class="ov wv"></div>'),m0=Object.fromEntries(MK.map(k=>[k,d[k]])),seen=new Set(),vv=window.visualViewport;document.body.append(ov);
  // le clavier réduit la zone visible : la fenêtre s'y cale au lieu de sauter
  const fit=()=>{if(!vv)return;ov.style.height=vv.height+'px';ov.style.top=vv.offsetTop+'px';ov.classList.toggle('kb',vv.height<innerHeight*.78)};
  if(vv){vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);fit()}
  const end=()=>{if(vv){vv.removeEventListener('resize',fit);vv.removeEventListener('scroll',fit)}ov.remove()};
- const closeW=()=>{if(d.voice&&d.voice!==v0&&!confirm('Le vocal que tu viens d’enregistrer n’est pas sauvegardé et sera perdu. Fermer quand même ?'))return;if(rec)rec.stop();end()};ov._close=closeW;
+ const closeW=()=>{if(MK.some(k=>k!=='photo'&&!k.endsWith('t')&&d[k]&&d[k]!==m0[k])&&!confirm('Un enregistrement que tu viens de faire n’est pas sauvegardé et sera perdu. Fermer quand même ?'))return;if(rec)rec.stop();end()};ov._close=closeW;
  const act=()=>steps.filter(s=>!s.when||s.when(d));
  if(start){const j=act().findIndex(s=>s.k===start);if(j>=0)i=j}
  const rx=()=>{const s=act()[i],r=$('#rx',ov);if(r)r.textContent=s.react?s.react(d):''};
@@ -377,14 +410,15 @@ function wizard({steps,d,title,edit,done,start}){
  ov.addEventListener('input',e=>{const t=e.target;if(t.name){if(t.name==='birth'||t.name==='death'){const f=fmtDateInput(t.value);if(f!==t.value)t.value=f}d[t.name]=t.value;rx()}
   if(t.classList.contains('flt')){const v=t.value.toLowerCase();$$('[data-n]',ov).forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
  ov.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.imp){if(t.files[0])await importMedia(d,t.dataset.imp,t.files[0]);t.value='';draw();return}
   if(t.type==='file'&&t.files[0]){if(d.photo&&!confirm('Êtes-vous sûr de vouloir remplacer ce média ?')){t.value='';return}const b=await resize(t.files[0]);if(b)d.photo=await putMedia(b);draw()}
   else if(t.classList.contains('dtn')&&t.value){d[t.dataset.for]=dispIn(t.value);draw()}});
  ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'&&e.target.type!=='date'){e.preventDefault();next()}});
  ov.addEventListener('click',e=>{const t=e.target.closest('[data-w],[data-k],[data-pick],[data-go],[data-dice],[data-rm],[data-sug],[data-rec],[data-rmv],[data-restore],[data-cal]');if(!t)return;const D=t.dataset;
   if(D.w==='close')closeW();
   else if(D.cal){const n=$(`.dtn[data-for=${D.cal}]`,ov);try{n.showPicker()}catch{n.click()}}
-  else if(D.rec!==undefined){if(!rec&&d.voice){if(d.voice===v0&&!confirm('Un vocal est déjà enregistré. Le réenregistrer le REMPLACERA (tu pourras le retrouver ici tant que tu ne fermes pas cette fenêtre). Continuer ?'))return;d.voicePrev=d.voice}recToggle(d,draw)}
-  else if(D.rmv!==undefined){if(confirm('Êtes-vous sûr de vouloir supprimer ce média ?')){d.voicePrev=d.voice;d.voice='';draw()}}
+  else if(D.rec!==undefined){const f=D.rec||'voice';if(!rec&&d[f]){if(d[f]===m0[f]&&!confirm('Êtes-vous sûr de vouloir remplacer ce média ? (tu pourras le retrouver ici tant que tu ne fermes pas cette fenêtre)'))return;if(f==='voice')d.voicePrev=d.voice}recToggle(d,draw,f,D.kind||'audio')}
+  else if(D.rmv!==undefined){const f=D.rmv||'voice';if(confirm('Êtes-vous sûr de vouloir supprimer ce média ?')){if(f==='voice')d.voicePrev=d.voice;d[f]='';if(f!=='voice')d[f+'t']='';draw()}}
   else if(D.restore!==undefined){d.voice=d.voicePrev;draw()}else if(D.w==='back'){i--;draw()}else if(D.w==='next')next();else if(D.w==='fin')fin();
   else if(D.go){i=+D.go;draw()}
   else if(D.k){d[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;draw()}
@@ -395,6 +429,9 @@ function wizard({steps,d,title,edit,done,start}){
   else if(D.sug){d.about=D.sug;draw()}});
  draw();return ov}
 
+const souvBody=d=>{const ks=d.alive===false?SV.slice(0,1):SV.slice(1); // personne décédée : un fichier à importer ; personne en vie : sa voix ou son image à 10, 20, 60 ans et plus
+ return'<p class=hint>📞 Pendant un appel (téléphone, WhatsApp…), le micro et le son sont bloqués sur téléphone.</p>'+ks.map(([k,lb])=>{const on=rec&&recF===k,pv=d[k]?(d[k+'t']?`<video controls preload=metadata poster="${mu(d[k+'t'])}" src="${mu(d[k])}" style="width:100%;max-height:220px"></video>`:`<audio controls preload=metadata src="${mu(d[k])}" style="width:100%"></audio>`):'';
+  return`<div class=sv><h4>${esc(d.alive===false?'Fichier à garder en souvenir':lb)}</h4>${pv}${on?`<div class=svb><button class=opt data-rec=${k} data-kind=${recKind}>⏹ Arrêter</button></div>${recKind==='video'?'<video id=prev muted playsinline autoplay style="width:100%;max-height:220px"></video>':'<progress id=lvl max=1 value=0 style="width:100%"></progress>'}`:`<div class=svb>${d.alive===false?'':`<button data-rec=${k} data-kind=audio ${rec?'disabled':''}>🎙️ Voix</button><button data-rec=${k} data-kind=video ${rec?'disabled':''}>🎥 Vidéo</button>`}<label class=btn>📁 Importer<input type=file accept="audio/*,video/*" data-imp=${k} hidden></label>${d[k]?`<button data-rmv=${k}>🗑️ Supprimer</button>`:''}</div>`}</div>`}).join('')};
 const personSteps=id=>[
  {k:'id',icon:'🪪',lb:'Identité',q:()=>'Qui est cette personne ?',has:d=>d.first||d.last,
   body:d=>`<input name=first placeholder="Prénom(s)" autocapitalize=words autocomplete=off enterkeyhint=next value="${esc(d.first)}"><input name=last placeholder="Nom" autocapitalize=words autocomplete=off enterkeyhint=next value="${esc(d.last)}"><div class="opts g3">${[['F','👩 Femme'],['M','👨 Homme'],['X','🧑 Autre']].map(([v,l])=>`<button class="opt ${d.gender===v?'on':''}" data-k=gender data-v=${v}>${l}</button>`).join('')}</div>${d.gender==='F'||d.maiden?`<input name=maiden placeholder="Nom de jeune fille (si connu)" autocapitalize=words autocomplete=off value="${esc(d.maiden)}">`:''}`,
@@ -418,11 +455,13 @@ const personSteps=id=>[
   react:d=>{const n=d.parents.map(get).filter(Boolean).map(nm);return n.length?`${cap(fn(d))} descend de ${n.join(' & ')} 🌿`:''}},
  {k:'story',icon:'📖',lb:'Histoire',q:d=>`Une anecdote sur ${fn(d)} ?`,hint:'Optionnel — c’est ce qui donne vie à un arbre. Une phrase suffit !',has:d=>d.job||d.story,
   body:d=>`<input name=job placeholder="Métier / passion" autocomplete=off value="${esc(d.job)}"><p><b>${esc(d.storyQ)}</b> <button data-dice title="Une autre question">🎲</button></p><textarea name=story rows=4 placeholder="Écris librement…">${esc(d.story)}</textarea>`},
- {k:'voice',icon:'🎙️',lb:'Vocal',q:d=>`Un message vocal pour ${fn(d)} ?`,hint:'Optionnel : sa voix, ou toi qui racontes un souvenir (60 s max). Réécoutable par tous depuis la fiche.',has:d=>d.voice,
-  body:d=>`<div style="text-align:center">${rec?'<button class=opt data-rec>⏹ Arrêter</button><p>🔴 Enregistrement en cours… parle, la jauge doit bouger</p><progress id=lvl max=1 value=0 style="width:100%"></progress>':`<button class=opt data-rec>🎙️ ${d.voice?'Réenregistrer':'Enregistrer'}</button>`}${d.voice&&!rec?`<p><audio controls data-d style="width:100%"></audio></p><button data-rmv>Supprimer le vocal</button>`:''}${d.voicePrev&&d.voicePrev!==d.voice&&!rec?'<p><button data-restore>↩️ Retrouver l’ancien vocal</button></p>':''}</div>`,
-  react:d=>d.voice?'Sa voix traversera les générations 🎶':''}
+ {k:'voice',icon:'🎙️',lb:'Vocal',q:d=>`Une anecdote racontée à voix haute ?`,hint:'Optionnel : l’anecdote racontée par la personne elle-même ou par quelqu’un d’autre (2 min maximum). Réécoutable par tous depuis la fiche.',has:d=>d.voice,
+  body:d=>`<div style="text-align:center">${rec&&recF==='voice'?'<button class=opt data-rec=voice data-kind=audio>⏹ Arrêter</button><p>🔴 Enregistrement en cours… parle, la jauge doit bouger</p><progress id=lvl max=1 value=0 style="width:100%"></progress>':`<button class=opt data-rec=voice data-kind=audio ${rec?'disabled':''}>🎙️ ${d.voice?'Réenregistrer':'Enregistrer'}</button>`}${d.voice&&!rec?`<p><audio controls data-d style="width:100%"></audio></p><button data-rmv=voice>Supprimer le vocal</button>`:''}${d.voicePrev&&d.voicePrev!==d.voice&&!rec?'<p><button data-restore>↩️ Retrouver l’ancien vocal</button></p>':''}</div><input name=narrator placeholder="Qui raconte ? (vide = la personne elle-même)" autocomplete=off value="${esc(d.narrator||'')}"><p class=hint>📞 Pendant un appel (téléphone, WhatsApp…), le micro et le son sont bloqués sur téléphone.</p>`,
+  react:d=>d.voice?'Sa voix traversera les générations 🎶':''},
+ {k:'souv',icon:'🕯️',lb:'Souvenir',q:d=>d.alive===false?`Un souvenir de ${fn(d)} ?`:`${cap(fn(d))} à différents âges`,hint:'Optionnel : un fichier audio ou vidéo (vidéo 1 min et 30 Mo maximum, son 2 min). Pour une personne en vie : sa voix ou son image à 10 ans, 20 ans, 60 ans et plus.',has:d=>SV.some(([k])=>d[k]),
+  body:d=>souvBody(d),react:d=>SV.some(([k])=>d[k])?'Un souvenir précieux 🕯️':''}
 ];
-const blank=()=>({first:'',last:'',maiden:'',gender:'',birth:'',birthPlace:'',alive:true,death:'',deathPlace:'',photo:'',voice:'',job:'',story:'',storyQ:'',parents:[],partner:''});
+const blank=()=>({first:'',last:'',maiden:'',gender:'',birth:'',birthPlace:'',alive:true,death:'',deathPlace:'',...blankM,narrator:'',job:'',story:'',storyQ:'',parents:[],partner:''});
 function openPerson(id,pre={},after,start){
  const p=id&&T.persons[id];
  const d=p?{...blank(),...p,birth:dispIn(p.birth),death:dispIn(p.death),parents:[...p.parents],storyQ:p.storyQ||pick(Q)}:{...blank(),last:T.family||'',storyQ:pick(Q),...pre};
@@ -537,7 +576,8 @@ function popHtml(p){
  ${p.birth||p.birthPlace?row('birth',`🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}`):''}
  ${p.alive===false?row('life',`🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}`):''}
  ${p.job||p.story?row('story',`${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}`):''}
- ${p.voice?row('voice',`<h4>🎙️ Message vocal</h4>${lack(p.voice)?`<div class=mmiss>🎙️ Vocal non récupéré ${gb(p.voice)}</div>`:`<audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button> <button data-act=expm data-id="${p.voice}" data-pid="${p.id}" data-type=vocal>💾 Exporter ce média</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`}`):''}
+ ${p.voice?row('voice',`<h4>🎙️ ${p.narrator?`Anecdote racontée par ${esc(p.narrator)}`:'Message vocal'}</h4>${lack(p.voice)?`<div class=mmiss>🎙️ Vocal non récupéré ${gb(p.voice)}</div>`:`<audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button> <button data-act=expm data-id="${p.voice}" data-pid="${p.id}" data-type=vocal>💾 Exporter ce média</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`}`):''}
+ ${SV.some(([k])=>p[k])?row('souv',`<h4>🕯️ Souvenirs</h4>${SV.filter(([k])=>p[k]).map(([k,lb,sl])=>svView(p,k,lb,sl)).join('')}`):''}
  ${hasRel?row('family',rel('Parents',p.parents.map(get).filter(Boolean))+rel('En couple avec',[get(p.partner)].filter(Boolean))+rel('Enfants',kids(p))+rel('Fratrie',sibs(p))):''}
  ${miss?`<div class=miss>${miss}</div>`:''}
  ${W?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}" aria-label="Supprimer">🗑️</button></div>`:''}</div>`}
@@ -578,9 +618,12 @@ const guestConn=did=>{const k=did&&Object.keys(live.dids).find(k=>live.dids[k]==
 const tkBusy=new Set(); // médias de tickets en cours de réception
 const tkMed=(t,id)=>tkBusy.has(id)?'⏳ Réception du média…':guestConn(t.did)?'⏳ En attente du média…':`⚠️ Média non disponible : ${esc(t.who)} doit être connecté·e pour l’envoyer`;
 function tkFetch(t){const c=guestConn(t.did); // les médias d'un ticket restent chez l'invité : l'hôte les récupère à l'ouverture du ticket
- if(c)for(const id of [t.after.photo,t.after.voice])if(lack(id)&&!tkBusy.has(id)){tkBusy.add(id);getMedia(c,id).catch(()=>{}).finally(()=>{tkBusy.delete(id);ticketsUI()})}}
+ if(c)for(const id of MK.filter(k=>!(SV.some(([s])=>s===k)&&t.after[k+'t'])).map(k=>t.after[k]))if(lack(id)&&!tkBusy.has(id)){tkBusy.add(id);getMedia(c,id).catch(()=>{}).finally(()=>{tkBusy.delete(id);ticketsUI()})}}
+const svCell=(p,k,t)=>{const id=p[k],th=p[k+'t'];if(!id)return''; // souvenir d'un ticket : une vidéo se compare sur sa miniature, la vidéo complète se récupère au clic
+ if(!th)return lack(id)?`<div class=mmiss>${tkMed(t,id)}</div>`:`<audio controls src="${mu(id)}" style="width:100%" onclick="event.stopPropagation()"></audio>`;
+ return(mu(th)?`<img class=thumb src="${mu(th)}" alt="">`:`<div class=mmiss>${tkMed(t,th)}</div>`)+(lack(id)?` <button data-act=tkvid data-id="${id}" data-tid="${t.id}">${tkBusy.has(id)?'⏳ Réception…':'▶️ Voir la vidéo'}</button>`:`<video controls preload=none poster="${mu(th)}" src="${mu(id)}" style="width:100%;max-height:200px" onclick="event.stopPropagation()"></video>`)};
 const tell=(t,ok)=>{const k=Object.keys(live.dids).find(k=>live.dids[k]===t.did),c=t.did&&k&&live.conns.find(x=>x.peer===k);if(c&&c.open)c.send({t:'tkres',pid:t.pid,ok})}; // prévient l'invité de la décision
-const FL={first:'Prénom(s)',last:'Nom',maiden:'Nom de jeune fille',gender:'Genre',birth:'Naissance',birthPlace:'Lieu de naissance',alive:'Statut',death:'Décès',deathPlace:'Lieu de décès',job:'Métier',story:'Anecdote',photo:'Photo',voice:'Vocal',parents:'Parents',partner:'Conjoint·e'};
+const FL={first:'Prénom(s)',last:'Nom',maiden:'Nom de jeune fille',gender:'Genre',birth:'Naissance',birthPlace:'Lieu de naissance',alive:'Statut',death:'Décès',deathPlace:'Lieu de décès',job:'Métier',story:'Anecdote',photo:'Photo',voice:'Vocal',narrator:'Narrateur',memo:'Souvenir',m10:'Souvenir à 10 ans',m20:'Souvenir à 20 ans',m60:'Souvenir à 60 ans et plus',parents:'Parents',partner:'Conjoint·e'};
 const GL={F:'Femme',M:'Homme',X:'Autre'};
 const rawF=(p,k)=>!p?'':k==='parents'?p.parents.join():k==='alive'?(p.alive===false?'d':'v'):(p[k]||'');
 const showF=(p,k)=>{const nmOf=id=>{const q=get(id);return q?nm(q):'(fiche inconnue)'};
@@ -588,8 +631,8 @@ const showF=(p,k)=>{const nmOf=id=>{const q=get(id);return q?nm(q):'(fiche incon
 function diffRows(t){const b=get(t.pid),a=t.after,rows=[];
  for(const k in FL){const ov=rawF(b,k),nv=rawF(a,k);if(ov===nv||(!b&&k==='alive'&&nv==='v'))continue;
   const kind=!ov||(!b&&k==='alive')?'add':!nv?'del':'mod'; // rose = ajouté, orange = modifié, rouge = supprimé
-  const cell=(p,w)=>k==='photo'?(p.photo?(mu(p.photo)?`<img class=thumb src="${mu(p.photo)}" alt="">`:`<div class=mmiss>${tkMed(t,p.photo)}</div>`):''):k==='voice'?`<small>${w==='new'?'Proposé':'Actuel'}</small>${p.voice&&lack(p.voice)?`<div class=mmiss>${tkMed(t,p.voice)}</div>`:`<audio controls data-tk="${t.id}:${w}" onclick="event.stopPropagation()"></audio>`}`:esc(showF(p,k));
-  const html=kind==='add'?cell(a,'new'):kind==='del'?`<s>${cell(b,'old')}</s>`:k==='voice'?cell(b,'old')+cell(a,'new'):k==='photo'?`<div class=cmp><figure><figcaption>Avant</figcaption>${cell(b,'old')}</figure><figure><figcaption>Proposé</figcaption>${cell(a,'new')}</figure></div>`:`${cell(b,'old')} → ${cell(a,'new')}`;
+  const isSv=SV.some(([x])=>x===k),cell=(p,w)=>isSv?svCell(p,k,t):k==='photo'?(p.photo?(mu(p.photo)?`<img class=thumb src="${mu(p.photo)}" alt="">`:`<div class=mmiss>${tkMed(t,p.photo)}</div>`):''):k==='voice'?`<small>${w==='new'?'Proposé':'Actuel'}</small>${p.voice&&lack(p.voice)?`<div class=mmiss>${tkMed(t,p.voice)}</div>`:`<audio controls data-tk="${t.id}:${w}" onclick="event.stopPropagation()"></audio>`}`:esc(showF(p,k));
+  const html=kind==='add'?cell(a,'new'):kind==='del'?`<s>${cell(b,'old')}</s>`:k==='voice'?cell(b,'old')+cell(a,'new'):k==='photo'||isSv?`<div class=cmp><figure><figcaption>Avant</figcaption>${cell(b,'old')}</figure><figure><figcaption>Proposé</figcaption>${cell(a,'new')}</figure></div>`:`${cell(b,'old')} → ${cell(a,'new')}`;
   rows.push(`<div class="dr d-${kind}"><b>${FL[k]}</b>${html}</div>`)}
  return rows}
 function ticketsUI(open){
@@ -645,8 +688,11 @@ Chaque personne : id, first (prenom), last (nom), maiden (nom de jeune fille), g
 birth et death (AAAA, AAAA-MM ou AAAA-MM-JJ), birthPlace, deathPlace, alive (true/false),
 job (metier), story (anecdote), storyQ (question de l'anecdote), parents (0 a 2 identifiants),
 partner (identifiant), del (true si supprimee), u (derniere modification, en millisecondes),
-photo et voice (identifiant du media ; vide s'il n'y en a pas).
-Formats : photos en JPEG (1280 pixels au maximum), sons en AAC .m4a mono 48 kbit/s (WebM/Opus si le navigateur ne sait pas enregistrer en AAC).
+photo et voice (identifiant du media ; vide s'il n'y en a pas),
+narrator (qui raconte l'anecdote vocale ; vide = la personne elle-meme),
+memo (souvenir d'une personne decedee), m10, m20, m60 (souvenir a 10 ans, a 20 ans, a 60 ans et plus : fichier audio ou video),
+memot, m10t, m20t, m60t (miniature d'une video) : identifiants de medias.
+Formats : photos en JPEG (1280 pixels au maximum), sons en AAC .m4a mono 48 kbit/s (WebM/Opus si le navigateur ne sait pas enregistrer en AAC), videos en MP4 H.264 (720p, 1 minute et 30 Mo au maximum).
 Un media est identifie par l'empreinte SHA-256 de son contenu (64 caracteres hexadecimaux).
 La table "media" donne, pour chaque empreinte, le chemin du fichier dans ce ZIP (file), son type (type) et sa taille en octets (size).
 Un fichier renomme ou deplace dans le ZIP reste reconnu : Racines retrouve un media grace a son contenu, jamais a son nom.
@@ -657,9 +703,9 @@ const sha=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',b))].
 const missingMedia=(t=T)=>new Set(Object.values(t.persons).flatMap(p=>MK.map(k=>p[k])).filter(id=>id&&!MC.has(id))).size;
 async function buildZip(t=T){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(t))),media={},dirs=new Set(),files=[],miss=missingMedia(t);
  if(miss&&!confirm(`${pl(miss,'média manque','médias manquent')} sur cet appareil : ${miss>1?'ils ne seront':'il ne sera'} pas dans l’export. Exporter quand même ?`))return null;
- for(const p of Object.values(tree.persons)){if(!p.photo&&!p.voice)continue;
+ for(const p of Object.values(tree.persons)){if(MK.every(k=>!p[k]))continue;
   const base=personBase(p),dir=dirs.has(base)?`${base}-${p.id}`:base,d=mediaDay(p);dirs.add(dir);
-  for(const [type,f] of [['photo','photo'],['vocal','voice']]){const id=p[f],m=MC.get(id);if(!id||!m||media[id])continue; // même contenu = un seul fichier
+  for(const f of MK){const type=TYPE[f],id=p[f],m=MC.get(id);if(!id||!m||media[id])continue; // même contenu = un seul fichier
    const b=new Uint8Array(await(await fetch(m.url)).arrayBuffer()),mime=m.type,path=`${dir}/${dir}_${type}_${d}.${fileExt(mime)}`;
    media[id]={file:path,type:mime,size:b.length};files.push([path,b])}}
  const enc=new TextEncoder();
@@ -708,19 +754,21 @@ const ACT={
  addParent({id}){openPerson(null,{},np=>{const c=T.persons[id];c.parents=[...c.parents,np.id].slice(0,2);commit(c)})},
  del({id}){const p=get(id);if(!p||!confirm(`Supprimer ${nm(p)} de l’arbre ?${p.photo?'\n\nSa photo sera supprimée aussi.':''}${p.voice?'\n\n⚠️ Son message vocal (unique) sera supprimé aussi.':''}\n\nTu pourras annuler tant que tu ne fermes pas la page.`))return;
   if(p.voice&&!confirm(`Dernière confirmation : le vocal de ${nm(p)} sera perdu pour de bon si tu fermes la page. Supprimer quand même ?`))return;
-  recorded(`suppression de ${nm(p)}`,()=>{const q=get(p.partner);if(q){q.partner='';commit(q)}Object.assign(p,{del:true,photo:'',voice:'',partner:''});commit(p)});
+  recorded(`suppression de ${nm(p)}`,()=>{const q=get(p.partner);if(q){q.partner='';commit(q)}Object.assign(p,{del:true,...blankM,partner:''});commit(p)});
   sel=popId=null;render();toast('🗑️ Supprimé','Annuler',undo)},
  undo(){undo()},
  menu(){$('#mnu').classList.toggle('open')},
  bnclose(){bnHide=true;render()},
  tickets(){tkOpen=null;ticketsUI(true)},
  tkclose(){if(tkOv){tkOv.remove();tkOv=null}},
+ async tkvid({id,tid}){const t=(T.tickets||[]).find(x=>x.id===tid),c=t&&guestConn(t.did);if(!c)return toast('Le média est chez l’invité : il doit être connecté pour l’envoyer.');
+  if(!lack(id)||tkBusy.has(id))return;tkBusy.add(id);ticketsUI();try{await getMedia(c,id)}catch{toast('Récupération de la vidéo impossible')}tkBusy.delete(id);ticketsUI()},
  tkopen({id}){tkOpen=tkOpen===id?null:id;const t=tkOpen&&(T.tickets||[]).find(x=>x.id===tkOpen);if(t)tkFetch(t);ticketsUI()},
  tkok({id}){if(live.peer&&!live.host)return; // validation : l'hôte seul
   const t=(T.tickets||[]).find(x=>x.id===id);if(!t)return;const cu=get(t.pid);if(cu&&cu.u>t.at&&!confirm('⚠️ Cette fiche a été modifiée depuis l’arrivée de '+t.who+' : valider écrasera ces changements récents. Continuer ?'))return;
-  if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.${[t.after.photo,t.after.voice].some(lack)?'\n\n⚠️ Un média n’est pas encore reçu : la fiche sera validée avec un média « manquant » jusqu’à sa réception.':''}`))return;
+  if(!confirm(t.after.del?`Valider la SUPPRESSION de ${nm(t.after)} proposée par ${t.who} ?`:`Valider les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nLes données actuelles de cette fiche seront remplacées par celles du ticket.${MK.some(k=>lack(t.after[k]))?'\n\n⚠️ Un média n’est pas encore reçu : la fiche sera validée avec un média « manquant » jusqu’à sa réception.':''}`))return;
   T.tickets=T.tickets.filter(x=>x.id!==id);tell(t,true);
-  recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});const gc=guestConn(t.did);if(gc)pullFrom(gc,[t.after.photo,t.after.voice]);ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
+  recorded(`ticket de ${t.who}`,()=>{const p={...t.after,u:now()};T.persons[p.id]=p;commit(p)});const gc=guestConn(t.did);if(gc)pullFrom(gc,MK.map(k=>t.after[k]));ticketsUI();toast('✅ Changements appliqués','Annuler',undo)},
  tkno({id}){if(live.peer&&!live.host)return;
   const t=(T.tickets||[]).find(x=>x.id===id);if(!t||!confirm(`Refuser les changements de ${t.who} sur « ${nm(t.after)} » ?\n\nCe ticket sera supprimé, l’arbre actuel reste inchangé.`))return;
   T.tickets=T.tickets.filter(x=>x.id!==id);saveTree(T);tell(t,false);render();ticketsUI();toast('❌ Ticket refusé')},
@@ -730,7 +778,7 @@ const ACT={
  fit(){cam=null;camInit()},
  live(){liveUI(true)}
 };
-const NEED={add:1,edit:1,editat:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2,tickets:2,tkopen:2,tkok:2,tkno:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
+const NEED={add:1,edit:1,editat:1,addChild:1,addPartner:1,addParent:1,del:1,undo:1,settings:2,tickets:2,tkopen:2,tkvid:2,tkok:2,tkno:2}; // rang minimum par action (garde-fou d'interface ; l'hôte re-vérifie côté réseau)
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');
  if(!a||a.dataset.act!=='menu'){const m=$('#mnu');if(m)m.classList.remove('open')} // menu ⋯ : se referme au prochain clic
  if(!a||!ACT[a.dataset.act])return;if(NEED[a.dataset.act]>rank())return toast('Droits insuffisants pour cette action');ACT[a.dataset.act](a.dataset)});
@@ -775,7 +823,7 @@ $('#imp').addEventListener('change',async e=>{const f=e.target.files[0];e.target
  catch{return toast('Fichier invalide : choisis le ZIP exporté par Racines')}
  try{const byId=new Map(); // un média se reconnaît à son contenu, jamais à son nom
   for(const [n,b] of z)if(n!=='arbre.json'&&n!=='LISEZ-MOI.txt')byId.set(await sha(b),b);
-  const ps=Object.values(o.tree.persons),want=new Set(ps.flatMap(p=>[p.photo,p.voice]).filter(Boolean)),miss=[...want].filter(id=>!byId.has(id)&&!MC.has(id)).length;
+  const ps=Object.values(o.tree.persons),want=new Set(ps.flatMap(p=>MK.map(k=>p[k])).filter(Boolean)),miss=[...want].filter(id=>!byId.has(id)&&!MC.has(id)).length;
   HOME=await allTrees();const l=HOME.find(t=>t.id===o.tree.id),meta=o.media||{},np=ps.filter(p=>!p.del).length,tot=`${pl(np,'personne','personnes')} et ${pl(want.size,'média','médias')}`,warn=miss?`\n\n⚠️ ${pl(miss,'média manque','médias manquent')} ou ${miss>1?'sont abîmés':'est abîmé'} dans ce fichier.`:'';
   let mode='merge';
   if(!l){if(!confirm(`Cet arbre contient ${tot}. Importer ?`+warn))return}
@@ -864,7 +912,7 @@ async function onMsg(m,c){if(!m||typeof m.t!=='string')return;
   const after=normP(await ingestP({...m.item.after})),did=live.dids[c.peer]||'',who=(live.peers[c.peer]||{}).name||'?';
   T.tickets=(T.tickets||[]).filter(x=>!(did&&x.did===did&&x.pid===after.id)); // un seul ticket par appareil et par fiche
   T.tickets.push({id:rid(),who,did,at:now(),pid:after.id,after});saveTree(T);toast(`🎫 ${who} propose une modification`);render();ticketsUI();break}
- case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(await ingestP({...m.p}));if(!T)return;const l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;(T.su=T.su||{})[p.id]=p.u;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host){send(m,c);pullFrom(c,[p.photo,p.voice])}render();break}
+ case'p':{if(!T||!m.p||!m.p.id||(live.host&&rankOf(c)<1))return;const p=normP(await ingestP({...m.p}));if(!T)return;const l=T.persons[p.id];if(!l||p.u>l.u){T.persons[p.id]=p;(T.su=T.su||{})[p.id]=p.u;T.updated=Math.max(T.updated,p.u);saveTree(T);if(m.by)toast(`✏️ ${String(m.by).slice(0,30)} a modifié ${nm(p)}`)}if(live.host){send(m,c);pullFrom(c,MK.map(k=>p[k]))}render();break}
  case'm':{if(!T||!m.m||(live.host&&rankOf(c)<2))return;const r=norm({...m.m,persons:{}});if(r.mu>T.mu){for(const k of ['name','family','origin','about','author'])T[k]=r[k];T.mu=r.mu;saveTree(T)}if(live.host)send(m,c);render();break}
  case'sel':{if(live.host&&live.peers[c.peer]){live.peers[c.peer].sel=typeof m.id==='string'?m.id:null;bcastPeers();render()}break}
  case'role':{if(live.host&&rankOf(c)>=2)setRole(m.to,m.role);break}
@@ -910,7 +958,7 @@ setInterval(()=>{if(!T||!P().length||document.hidden||$('.ov')||/INPUT|TEXTAREA|
 (async()=>{if(TEST){document.title='[TEST] '+document.title;document.body.style.paddingTop='28px';document.body.prepend(el('<div style="position:fixed;top:0;left:0;right:0;z-index:50;background:#d93025;color:#fff;font:700 13px system-ui;text-align:center;padding:5px">VERSION TEST — données séparées de Racines</div>'))}
  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
  try{await loadMedia();await migrate()}catch(e){console.error(e);toast('Mise à jour du stockage impossible : '+e.message)}
- HOME=await allTrees();render();gc();
+ HOME=await allTrees();render();gc();checkSpace();
  const m=location.hash.match(/join=([A-Za-z0-9]+)/);
  if(m){history.replaceState(null,'',location.pathname+location.search);const code=m[1].toUpperCase();
   if(ME.name)warnJoin().then(ok=>ok&&joinStart(code,ME.name)).catch(e=>toast(e.message)); // appareil déjà venu : on entre directement, sans formulaire

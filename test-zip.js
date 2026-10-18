@@ -4,13 +4,13 @@ const cut=(a,b)=>{const i=h.indexOf(a),j=h.indexOf(b,i);assert(i>=0&&j>i,'repèr
 const b64=x=>Buffer.from(x).toString('base64'),U=(m,x)=>`data:${m};base64,`+b64(x);
 eval(`
 const wire=t=>{const {tickets,su,...w}=t;return w};
-let T=null;const esc=x=>x,ticketsUI=()=>{},rank=()=>1,now=()=>Date.now();const live={peer:null,conns:[],dids:{}},ME={name:'t'};const send=()=>{};
+let T=null;const esc=x=>x,ticketsUI=()=>{},rank=()=>1,now=()=>Date.now(),alert=()=>{};const live={peer:null,conns:[],dids:{}},ME={name:'t'};const send=()=>{};
 const trees={},media={},parts={};let puts=0,saves=0;const toasts=[];let renders=0;const toast=m=>toasts.push(m),render=()=>renders++,$=()=>null,$$=()=>[];const IDBKeyRange={bound:(a,b)=>({a,b})};
 const tx=async(m,f,st='trees')=>{const o=st==='media'?media:st==='parts'?parts:trees,r=f({getAll:g=>({result:Object.entries(o).filter(([k])=>!g||(k>=g.a&&k<=g.b)).map(([,v])=>structuredClone(v))}),put:v=>{o[v.k||v.id]=structuredClone(v);if(st==='media')puts++},delete:id=>{delete o[id]}});return r&&r.result};
 const allTrees=()=>tx('readonly',s=>s.getAll()),saveTree=async t=>{saves++;trees[t.id]=structuredClone(t)};
 const toUrl=async(b,t)=>'data:'+t+';base64,'+Buffer.from(b).toString('base64');
 const confirm=()=>true;
-`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('const MEDIA=','const resize=')+cut('let hist=[];','/* ---------- assistant pas-à-pas')+cut('async function readZip',"$('#imp').addEventListener")+`
+`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('const MEDIA=','const resize=')+cut('let rec=null,recF','async function recToggle')+cut('let hist=[];','/* ---------- assistant pas-à-pas')+cut('async function readZip',"$('#imp').addEventListener")+`
 ;(async()=>{
  const id=async x=>sha(Buffer.from(x)),sameId=/^[0-9a-f]{64}$/;
  // --- migration : ancien format (médias dans les fiches, y compris dans un ticket) -> médias à part, sans perte, relançable
@@ -92,11 +92,36 @@ const confirm=()=>true;
  T.persons.a.photo='9'.repeat(64);recorded('remplacement',()=>{T.persons.a.photo=ph;T.persons.a.u=5});
  toasts.length=0;undo();assert.strictEqual(T.persons.a.photo,ph,'ancien média absent : annulation refusée');assert.ok(toasts.some(m=>m.includes('Impossible')));assert.strictEqual(hist.length,0);
  // formats : photo JPEG 1280 px à 80 %, son AAC mono 48 kbit/s, AAC préféré quand le navigateur sait l'enregistrer
- assert.deepStrictEqual(MEDIA,{photoPx:1280,photoQ:.8,audioBps:48000});
+ assert.deepStrictEqual(MEDIA,{photoPx:1280,photoQ:.8,audioBps:48000,videoBps:1200000});
  assert.strictEqual(pickAudio(()=>true),'audio/mp4;codecs=mp4a.40.2');assert.strictEqual(pickAudio(x=>x.startsWith('audio/webm')),'audio/webm;codecs=opus');assert.strictEqual(pickAudio(()=>false),undefined);
  // noms de fichiers des médias exportés
  assert.strictEqual(personBase({first:'Élise',last:'Martin',birth:''}),'Elise-Martin_sans-date');assert.strictEqual(personBase({first:'Jean',last:'Dupont',birth:'1952-03-14'}),'Jean-Dupont_1952');
  assert.strictEqual(fileExt('audio/mp4;codecs=mp4a.40.2'),'m4a');assert.strictEqual(fileExt('image/svg+xml'),'svg');assert.strictEqual(fileExt(''),'bin','type inconnu : pas de plantage');assert.strictEqual(mediaDay({u:Date.UTC(2020,0,5)}),'2020-01-05');
+ // souvenirs : noms des fichiers exportés, miniature, limites, formats de vidéo importée
+ await putBytes(bid,big,'video/mp4');const th1=await putMedia(new Blob(['MINIATURE'],{type:'image/jpeg'})),au1=await putMedia(new Blob(['AUDIO-SOUVENIR'],{type:'audio/mp4'}));
+ T={name:'S',persons:{a:{id:'a',first:'Jean',last:'Dupont',birth:'1952',u:0,photo:'',voice:'',narrator:'Marie',m10:bid,m10t:th1,m20:au1,m20t:'',memo:'',memot:'',m60:'',m60t:''}}};
+ const sz=await readZip(await(await buildZip(T)).arrayBuffer());
+ assert.deepStrictEqual([...sz.keys()].filter(n=>n.includes('/')).sort(),['Jean-Dupont_1952/Jean-Dupont_1952_souvenir-10-ans-miniature_'+mediaDay(T.persons.a)+'.jpg','Jean-Dupont_1952/Jean-Dupont_1952_souvenir-10-ans_'+mediaDay(T.persons.a)+'.mp4','Jean-Dupont_1952/Jean-Dupont_1952_souvenir-20-ans_'+mediaDay(T.persons.a)+'.m4a'].sort());
+ assert.ok(MK.includes('m10t')&&MK.includes('memo')&&TYPE.m10t==='souvenir-10-ans-miniature'&&TYPE.voice==='vocal');
+ const ids=Object.keys(blankM);assert.ok(ids.every(k=>blankM[k]===''));
+ // limites : 50 Mo par personne, vidéo 30 Mo
+ MC.set('c'.repeat(64),{type:'audio/mp4',size:49e6,url:''});const dd={m10:'c'.repeat(64)};
+ await assert.rejects(addMedia(dd,'m20',new Blob([Buffer.alloc(2e6)],{type:'audio/mp4'}),false),/50 Mo/);
+ await assert.rejects(addMedia({},'m10',{size:31e6},true),/30 Mo/);
+ const d2={};await addMedia(d2,'m20',new Blob(['petit'],{type:'audio/mp4'}),false);assert.ok(sameId.test(d2.m20)&&d2.m20t==='','audio : pas de miniature');
+ // vidéo importée : MP4 H.264, 720p, 1 min, 30 Mo
+ const ok1={type:'video/mp4',name:'a.mp4',size:5e6},inf={d:30,w:1280,h:720};
+ assert.deepStrictEqual(videoProblems(ok1,inf,'xxavc1xx'),[]);assert.deepStrictEqual(videoProblems(ok1,{d:30,w:720,h:1280},'avc1'),[],'portrait 720p accepté');
+ assert.ok(videoProblems(ok1,inf,'xxhvc1xx').some(x=>x.includes('H.264')),'HEVC refusé');assert.ok(videoProblems(ok1,inf,'avc1 xx hvc1').some(x=>x.includes('H.264')),'HEVC refusé même avec une piste H.264');
+ assert.ok(videoProblems({...ok1,type:'video/quicktime',name:'a.mov'},inf,'avc1').some(x=>x.includes('MP4')));
+ assert.deepStrictEqual(videoProblems({...ok1,size:40e6},{d:90,w:1920,h:1080},'').sort(),['1 minute maximum','30 Mo maximum','720p maximum']);
+ assert.deepStrictEqual(audioProblems({size:1e6},{d:100}),[]);assert.ok(audioProblems({size:1e6},{d:130}).length===1);
+ // ticket avec vidéo : seules les petites pièces (miniature) sont récupérées à l'ouverture, la vidéo seulement sur demande
+ await delMedia(bid);await delMedia(th1);const asked=new Set();hostM.set(th1,{url:URL.createObjectURL(new Blob(['MINIATURE'],{type:'image/jpeg'})),type:'image/jpeg'});
+ const tkv={id:'t2',did:'D1',who:'Léa',after:{id:'a',parents:[],m10:bid,m10t:th1}};T={persons:{},tickets:[tkv]};
+ live.dids={k1:'D1'};live.conns=[mkConn({peer:'k1',onReq:m=>asked.add(m.id)})];tkFetch(tkv);
+ for(let i=0;i<200&&tkBusy.size;i++)await new Promise(r=>setTimeout(r,10));
+ assert.ok(MC.has(th1)&&!MC.has(bid)&&!asked.has(bid),'miniature récupérée, vidéo jamais demandée');live.dids={};live.conns=[];
  // décompte des tickets du bandeau de l'hôte : ajout = fiche inconnue, suppression = fiche supprimée, modification = fiche existante
  T={persons:{a:{id:'a'}},tickets:[{pid:'a',after:{}},{pid:'zz',after:{}},{pid:'a',after:{del:true}},{pid:'a',after:{}}]};
  assert.deepStrictEqual(tkCounts(),{add:1,mod:2,del:1});

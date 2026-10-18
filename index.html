@@ -325,13 +325,16 @@ const fn=d=>(d.first||'').trim().split(/\s+/)[0]||'cette personne';
 const ne=d=>d.gender==='F'?'née':d.gender==='M'?'né':'né(e)';
 const Q=['Quelle phrase répétait-il/elle tout le temps ?','Un plat ou une recette qu’on associe à cette personne ?','Ton plus beau souvenir avec elle/lui ?','Une passion, une manie, un petit travers attachant ?','Un objet qui lui appartenait et qu’on garde précieusement ?','Que raconte-t-on de lui/elle aux repas de famille ?','Un lieu où il/elle se sentait chez soi ?','Quel conseil donnait-il/elle ?'];
 const SUG=['Garder les histoires de mes grands-parents','Un cadeau pour la famille','Par pure curiosité','Retrouver une branche perdue'];
-const resize=f=>new Promise(ok=>{const i=new Image();i.onload=()=>{const s=Math.min(1,720/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);c.toBlob(ok,'image/jpeg',.8)};i.onerror=()=>ok(null);i.src=URL.createObjectURL(f)});
+const MEDIA={photoPx:1280,photoQ:.8,audioBps:48000}; // formats : photo JPEG 1280 px max à 80 %, son AAC mono 48 kbit/s
+const AUDIO_TYPES=['audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm;codecs=opus','audio/webm'],pickAudio=ok=>AUDIO_TYPES.find(ok); // AAC (.m4a) d'abord ; WebM/Opus si le navigateur ne sait pas enregistrer en AAC
+const resize=f=>new Promise(ok=>{const i=new Image();i.onload=()=>{const s=Math.min(1,MEDIA.photoPx/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);c.toBlob(ok,'image/jpeg',MEDIA.photoQ)};i.onerror=()=>ok(null);i.src=URL.createObjectURL(f)});
 let rec=null; // enregistreur vocal en cours
 async function recToggle(d,draw){
  if(rec){rec.stop();return}
- try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-  const mt=window.MediaRecorder&&['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t)),
-   mr=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:32000}:undefined),ch=[];
+ try{const st=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  const mt=window.MediaRecorder&&pickAudio(t=>MediaRecorder.isTypeSupported(t)),
+   mr=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:MEDIA.audioBps}:undefined),ch=[];
+  if(mt&&!/mp4/.test(mt))toast('ℹ️ Ce navigateur n’enregistre pas en AAC (.m4a) : le vocal est en WebM, lu par la plupart des appareils récents.');
   // jauge de niveau : montre que le micro capte bien, et détecte un enregistrement muet
   const ac=new(window.AudioContext||window.webkitAudioContext)(),an=ac.createAnalyser(),buf=new Uint8Array(an.fftSize);let peak=0;
   ac.createMediaStreamSource(st).connect(an);
@@ -638,6 +641,7 @@ birth et death (AAAA, AAAA-MM ou AAAA-MM-JJ), birthPlace, deathPlace, alive (tru
 job (metier), story (anecdote), storyQ (question de l'anecdote), parents (0 a 2 identifiants),
 partner (identifiant), del (true si supprimee), u (derniere modification, en millisecondes),
 photo et voice (identifiant du media ; vide s'il n'y en a pas).
+Formats : photos en JPEG (1280 pixels au maximum), sons en AAC .m4a mono 48 kbit/s (WebM/Opus si le navigateur ne sait pas enregistrer en AAC).
 Un media est identifie par l'empreinte SHA-256 de son contenu (64 caracteres hexadecimaux).
 La table "media" donne, pour chaque empreinte, le chemin du fichier dans ce ZIP (file), son type (type) et sa taille en octets (size).
 Un fichier renomme ou deplace dans le ZIP reste reconnu : Racines retrouve un media grace a son contenu, jamais a son nom.

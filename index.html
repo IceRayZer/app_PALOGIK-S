@@ -388,7 +388,7 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const fmtDateInput=v=>{if(/[^\d\/.\-\s]/.test(v)||/[\/.\-]/.test(v))return v;const g=v.replace(/\D/g,'');return g.length<=4?g:g.slice(0,2)+'/'+g.slice(2,4)+(g.length>4?'/'+g.slice(4,8):'')};
 const dateField=(n,v,ph)=>`<div class=dtw><input name=${n} inputmode=numeric autocomplete=off placeholder="${ph}" value="${esc(v)}"><button type=button class=cal data-cal=${n} aria-label="Choisir dans le calendrier">📅</button><input type=date class=dtn data-for=${n} tabindex=-1 aria-hidden=true></div>`;
 
-function wizard({steps,d,title,edit,done,start}){
+function wizard({steps,d,title,edit,done,start,guard}){
  let i=0;const ov=el('<div class="ov wv"></div>'),m0=Object.fromEntries(MK.map(k=>[k,d[k]])),seen=new Set(),vv=window.visualViewport;document.body.append(ov);
  // le clavier réduit la zone visible : la fenêtre s'y cale au lieu de sauter
  const fit=()=>{if(!vv)return;ov.style.height=vv.height+'px';ov.style.top=vv.offsetTop+'px';ov.classList.toggle('kb',vv.height<innerHeight*.78)};
@@ -405,7 +405,7 @@ function wizard({steps,d,title,edit,done,start}){
   ov.innerHTML=`<div class="wz wz2"><div class=wh><div class=wt><span>${title}</span><button class=x data-w=close aria-label="Fermer">✕</button></div><div class=rail>${rail}</div></div><div class=wb><div class=big>${s.icon}</div><h2>${esc(s.q(d))}</h2><p class=hint>${s.hint||''}</p><div class=body>${s.body(d)}</div><p class=react id=rx>${esc(s.react?s.react(d):'')}</p></div><div class=nav><button data-w=back ${i?'':'disabled'} aria-label="Étape précédente">←</button><button class="${last?'pri':''}" data-w=fin>💾 Enregistrer</button>${last?'':'<button class=pri data-w=next>Suivant →</button>'}</div></div>`;
   $$('audio[data-d]',ov).forEach(a=>a.src=blobUrl(d.voice));
   if(!coarse){const f=$('input:not([type=file]):not([type=date]),textarea',ov);f&&f.focus()}};
- const fin=()=>{if(rec){toast('Arrête d’abord l’enregistrement');return}for(const [j,s] of act().entries()){const e=s.check&&s.check(d);if(e){i=j;draw();toast(e);return}}end();done(d)};
+ const fin=()=>{if(rec){toast('Arrête d’abord l’enregistrement');return}for(const [j,s] of act().entries()){const e=s.check&&s.check(d);if(e){i=j;draw();toast(e);return}}const g=guard&&guard();if(g&&!confirm(g))return;end();done(d)};
  const next=()=>{const A=act(),e=A[i].check&&A[i].check(d);if(e){toast(e);const w=$('.wz',ov);w.classList.add('shake');setTimeout(()=>w.classList.remove('shake'),400);return}i<A.length-1?(i++,draw()):fin()};
  ov.addEventListener('input',e=>{const t=e.target;if(t.name){if(t.name==='birth'||t.name==='death'){const f=fmtDateInput(t.value);if(f!==t.value)t.value=f}d[t.name]=t.value;rx()}
   if(t.classList.contains('flt')){const v=t.value.toLowerCase();$$('[data-n]',ov).forEach(c=>c.style.display=c.dataset.n.includes(v)?'':'none')}});
@@ -462,10 +462,14 @@ const personSteps=id=>[
   body:d=>souvBody(d),react:d=>SV.some(([k])=>d[k])?'Un souvenir précieux 🕯️':''}
 ];
 const blank=()=>({first:'',last:'',maiden:'',gender:'',birth:'',birthPlace:'',alive:true,death:'',deathPlace:'',...blankM,narrator:'',job:'',story:'',storyQ:'',parents:[],partner:''});
+// conflits en live : la dernière fiche enregistrée gagne, mais jamais en silence
+const viewersOf=(id,me)=>Object.entries(live.peers).filter(([k,v])=>k!==me&&v.sel===id).map(([,v])=>v.name); // qui a cette fiche ouverte en ce moment
+const staleMsg=(cur,u0)=>!cur||cur.u===u0?'':cur.del?'⚠️ Cette personne a été supprimée par quelqu’un d’autre pendant que tu la modifiais. Enregistrer la remettra dans l’arbre. Continuer ?':'⚠️ Cette fiche a été modifiée par quelqu’un d’autre pendant que tu la modifiais. Enregistrer remplacera ses changements par les tiens. Continuer ?';
 function openPerson(id,pre={},after,start){
- const p=id&&T.persons[id];
+ const p=id&&T.persons[id],u0=p&&p.u,vw=id?viewersOf(id,myKey()):[];
+ if(vw.length)toast(`👀 ${vw.join(', ')} ${vw.length>1?'ont':'a'} aussi cette fiche ouverte : si vous enregistrez en même temps, la dernière version enregistrée est gardée.`);
  const d=p?{...blank(),...p,birth:dispIn(p.birth),death:dispIn(p.death),parents:[...p.parents],storyQ:p.storyQ||pick(Q)}:{...blank(),last:T.family||'',storyQ:pick(Q),...pre};
- wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,start,steps:personSteps(id),d,done:d=>{let np;recorded(p?`modification de ${nm(p)}`:'ajout d’une personne',()=>{np=savePerson(d,id);after&&after(np)});sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
+ wizard({title:p?`✏️ ${esc(nm(p))}`:'✨ Nouvelle personne',edit:!!p,start,steps:personSteps(id),d,guard:()=>p?staleMsg(T.persons[id],u0):'',done:d=>{let np;recorded(p?`modification de ${nm(p)}`:'ajout d’une personne',()=>{np=savePerson(d,id);after&&after(np)});sel=np.id;render();toast(`🌳 ${nm(np)} ${p?'est à jour':'a rejoint l’arbre'} !`);boom()}})}
 
 const treeSteps=[
  {k:'name',lb:'Nom',has:d=>d.name,icon:'🌳',q:()=>'Comment veux-tu appeler cet arbre ?',hint:'« Les Martin de Bretagne », « Mes racines »…',body:d=>`<input name=name value="${esc(d.name)}" placeholder="Arbre de la famille…">`,react:d=>d.name?`« ${d.name} » — joli nom, on plante ça ! 🌱`:'',check:d=>!d.name.trim()&&'Donne un nom à ton arbre'},

@@ -10,7 +10,7 @@ const tx=async(m,f,st='trees')=>{const o=st==='media'?media:st==='parts'?parts:t
 const allTrees=()=>tx('readonly',s=>s.getAll()),saveTree=async t=>{saves++;trees[t.id]=structuredClone(t)};
 const toUrl=async(b,t)=>'data:'+t+';base64,'+Buffer.from(b).toString('base64');
 const confirm=()=>true;
-`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('const MEDIA=','const resize=')+cut('let rec=null,recF','async function recToggle')+cut('let hist=[];','/* ---------- assistant pas-à-pas')+cut('async function readZip',"$('#imp').addEventListener")+`
+`+cut('const safeAudio','function normP')+cut('/* ---------- médias :','/* ---------- dates')+cut('/* ---------- export : un ZIP unique','const zipName=')+cut('const guestConn=','const tell=')+`const get=id=>{const p=T&&T.persons[id];return p&&!p.del?p:null};`+cut('const tkCounts=','const CAN_SHARE')+cut('const MEDIA=','const resize=')+cut('let rec=null,recF','async function recToggle')+cut('let hist=[];','/* ---------- assistant pas-à-pas')+cut('const viewersOf=','function openPerson')+cut('async function readZip',"$('#imp').addEventListener")+`
 ;(async()=>{
  const id=async x=>sha(Buffer.from(x)),sameId=/^[0-9a-f]{64}$/;
  // --- migration : ancien format (médias dans les fiches, y compris dans un ticket) -> médias à part, sans perte, relançable
@@ -122,6 +122,9 @@ const confirm=()=>true;
  live.dids={k1:'D1'};live.conns=[mkConn({peer:'k1',onReq:m=>asked.add(m.id)})];tkFetch(tkv);
  for(let i=0;i<200&&tkBusy.size;i++)await new Promise(r=>setTimeout(r,10));
  assert.ok(MC.has(th1)&&!MC.has(bid)&&!asked.has(bid),'miniature récupérée, vidéo jamais demandée');live.dids={};live.conns=[];
+ // conflits : qui a la fiche ouverte, fiche modifiée ou supprimée pendant l'édition
+ live.peers={host:{name:'Hôte',sel:'a'},k2:{name:'Léa',sel:'a'},k3:{name:'Tom',sel:'b'}};assert.deepStrictEqual(viewersOf('a','host'),['Léa']);assert.deepStrictEqual(viewersOf('b','k3'),[]);live.peers={};
+ assert.strictEqual(staleMsg({u:5},5),'');assert.ok(staleMsg({u:6},5).includes('modifiée'));assert.ok(staleMsg({u:6,del:true},5).includes('supprimée'));assert.strictEqual(staleMsg(undefined,5),'');
  // décompte des tickets du bandeau de l'hôte : ajout = fiche inconnue, suppression = fiche supprimée, modification = fiche existante
  T={persons:{a:{id:'a'}},tickets:[{pid:'a',after:{}},{pid:'zz',after:{}},{pid:'a',after:{del:true}},{pid:'a',after:{}}]};
  assert.deepStrictEqual(tkCounts(),{add:1,mod:2,del:1});

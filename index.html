@@ -531,11 +531,11 @@ function popHtml(p){
   row=(s,h)=>`<div class=fr><div>${h}</div>${eb(s)}</div>`,
   hasRel=p.parents.some(get)||get(p.partner)||kids(p).length,
   miss=W?[[!p.photo,'photo','📸 Photo'],[!p.birth&&!p.birthPlace,'birth','🎂 Naissance'],[!p.job&&!p.story,'story','📖 Anecdote'],[!p.voice,'voice','🎙️ Vocal'],[!hasRel,'family','🌳 Famille']].filter(x=>x[0]).map(([,s,l])=>`<button class=eb2 data-act=editat data-id="${p.id}" data-s=${s}>＋ ${l}</button>`).join(''):'';
- return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop aria-label="Fermer">✕</button></div><div class=ph>${mu(p.photo)?`<img class=bigph src="${mu(p.photo)}" alt="">${eb('photo')}`:av(p,'lg')+(lack(p.photo)?`<div class=mmiss>📸 Photo non récupérée ${gb(p.photo)}</div>`:'')}<h2>${esc(nm(p))} ${eb('id')}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
+ return`<div class="wz fiche" style="width:min(620px,100%)"><div class=wt><span>Fiche</span><button class=x data-act=closePop aria-label="Fermer">✕</button></div><div class=ph>${mu(p.photo)?`<img class=bigph src="${mu(p.photo)}" alt="">${eb('photo')}<div><button data-act=expm data-id="${p.photo}" data-pid="${p.id}" data-type=photo>💾 Exporter ce média</button></div>`:av(p,'lg')+(lack(p.photo)?`<div class=mmiss>📸 Photo non récupérée ${gb(p.photo)}</div>`:'')}<h2>${esc(nm(p))} ${eb('id')}</h2>${p.maiden?`<div class=mut>née ${esc(p.maiden)}</div>`:''}</div>
  ${p.birth||p.birthPlace?row('birth',`🎂 ${fmt(p.birth)}${p.birthPlace?' · '+esc(p.birthPlace):''}${p.alive!==false&&a!=null?` <small>(${a} ans)</small>`:''}`):''}
  ${p.alive===false?row('life',`🕊️ ${fmt(p.death)||'décédé(e)'}${p.deathPlace?' · '+esc(p.deathPlace):''}${a!=null?` <small>(${a} ans)</small>`:''}`):''}
  ${p.job||p.story?row('story',`${p.job?`<div>💼 ${esc(p.job)}</div>`:''}${p.story?`<blockquote><small>${esc(p.storyQ)}</small><br>${esc(p.story)}</blockquote>`:''}`):''}
- ${p.voice?row('voice',`<h4>🎙️ Message vocal</h4>${lack(p.voice)?`<div class=mmiss>🎙️ Vocal non récupéré ${gb(p.voice)}</div>`:`<audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`}`):''}
+ ${p.voice?row('voice',`<h4>🎙️ Message vocal</h4>${lack(p.voice)?`<div class=mmiss>🎙️ Vocal non récupéré ${gb(p.voice)}</div>`:`<audio controls preload=metadata data-vp></audio><button data-act=playalt data-id="${p.id}" title="À essayer si tu n’entends rien">🔊 Lecture alternative</button> <button data-act=expm data-id="${p.voice}" data-pid="${p.id}" data-type=vocal>💾 Exporter ce média</button><div class=mut style="font-size:12px">Pas de son ? Un appel en cours (téléphone, WhatsApp…) bloque l’audio : raccroche puis réessaie.</div>`}`):''}
  ${hasRel?row('family',rel('Parents',p.parents.map(get).filter(Boolean))+rel('En couple avec',[get(p.partner)].filter(Boolean))+rel('Enfants',kids(p))+rel('Fratrie',sibs(p))):''}
  ${miss?`<div class=miss>${miss}</div>`:''}
  ${W?`<div class=acts><button class=pri data-act=edit data-id="${p.id}">✏️ Modifier</button><button data-act=addParent data-id="${p.id}">＋ Parent</button><button data-act=addPartner data-id="${p.id}">＋ Conjoint·e</button><button data-act=addChild data-id="${p.id}">＋ Enfant</button><button data-act=del data-id="${p.id}" aria-label="Supprimer">🗑️</button></div>`:''}</div>`}
@@ -615,6 +615,9 @@ function zip(files){ // files:[[chemin,Uint8Array]] ; stockage sans compression 
  return new Blob([...parts,...cen,e],{type:'application/zip'})}
 const fname=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')||'Sans-nom';
 const EXT={'image/jpeg':'jpg','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/mpeg':'mp3','audio/ogg':'ogg','audio/webm':'webm'};
+const fileExt=mime=>EXT[mime.split(';')[0]]||(mime.split(';')[0].split('/')[1]||'bin').replace(/\+.*/,'');
+const personBase=p=>`${fname(`${p.first} ${p.last}`)}_${/^\d{4}/.test(p.birth)?p.birth.slice(0,4):'sans-date'}`; // Prenom-Nom_annee
+const mediaDay=p=>(p.u?new Date(p.u):new Date()).toISOString().slice(0,10);
 const README=(t,day)=>`RACINES - SAUVEGARDE D'UN ARBRE GENEALOGIQUE
 Arbre : ${t.name}
 Exporte le : ${day}
@@ -653,9 +656,9 @@ const missingMedia=(t=T)=>new Set(Object.values(t.persons).flatMap(p=>MK.map(k=>
 async function buildZip(t=T){const day=new Date().toISOString().slice(0,10),tree=JSON.parse(JSON.stringify(wire(t))),media={},dirs=new Set(),files=[],miss=missingMedia(t);
  if(miss&&!confirm(`${pl(miss,'média manque','médias manquent')} sur cet appareil : ${miss>1?'ils ne seront':'il ne sera'} pas dans l’export. Exporter quand même ?`))return null;
  for(const p of Object.values(tree.persons)){if(!p.photo&&!p.voice)continue;
-  const y=/^\d{4}/.test(p.birth)?p.birth.slice(0,4):'sans-date',base=`${fname(`${p.first} ${p.last}`)}_${y}`,dir=dirs.has(base)?`${base}-${p.id}`:base,d=(p.u?new Date(p.u):new Date()).toISOString().slice(0,10);dirs.add(dir);
+  const base=personBase(p),dir=dirs.has(base)?`${base}-${p.id}`:base,d=mediaDay(p);dirs.add(dir);
   for(const [type,f] of [['photo','photo'],['vocal','voice']]){const id=p[f],m=MC.get(id);if(!id||!m||media[id])continue; // même contenu = un seul fichier
-   const b=new Uint8Array(await(await fetch(m.url)).arrayBuffer()),mime=m.type,path=`${dir}/${dir}_${type}_${d}.${EXT[mime.split(';')[0]]||mime.split(';')[0].split('/')[1].replace(/\+.*/,'')}`;
+   const b=new Uint8Array(await(await fetch(m.url)).arrayBuffer()),mime=m.type,path=`${dir}/${dir}_${type}_${d}.${fileExt(mime)}`;
    media[id]={file:path,type:mime,size:b.length};files.push([path,b])}}
  const enc=new TextEncoder();
  return zip([['arbre.json',enc.encode(JSON.stringify({app:'racines',v:2,tree,media},null,1))],['LISEZ-MOI.txt',enc.encode(README(t,day))],...files])}
@@ -673,6 +676,12 @@ async function warnHost(){const m0='Avant d’inviter des personnes, fais une sa
 async function arrivalMedia(){const n=needIds().length;if(!n)return; // arrivée d'un invité : un total, jamais la liste détaillée
  if(await ask(`Il manque ${pl(n,'média','médias')} à ton arbre. Voulez-vous tout récupérer ?`,[['y','Oui, tout récupérer','pri'],['','Non, plus tard','']])==='y'){dl.fail.clear();dlAdd(needIds(),true)}}
 const tkCounts=()=>{const c={add:0,mod:0,del:0};for(const t of T.tickets||[])t.after.del?c.del++:get(t.pid)?c.mod++:c.add++;return c};
+let cloudNoted=false;
+async function exportMedia(id,pid,type){const m=MC.get(id),p=T&&T.persons[pid];if(!m||!p)return; // toujours à la demande, jamais automatique
+ if(!cloudNoted){if(await ask('ℹ️ Un fichier enregistré dans la galerie de ton téléphone peut être envoyé vers le cloud par les services du téléphone (Google Photos, iCloud…). Racines ne le fait jamais.',[['go','Exporter ce média','pri'],['','Annuler','']])!=='go')return;cloudNoted=true}
+ const blob=await(await fetch(m.url)).blob(),file=new File([blob],`${personBase(p)}_${type}_${mediaDay(p)}.${fileExt(m.type)}`,{type:m.type.split(';')[0]||blob.type});
+ try{if(coarse&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e.name==='AbortError')return} // téléphone : menu de partage (« Enregistrer la vidéo »…) ; sinon téléchargement
+ const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('💾 Média exporté : '+file.name)}
 const CAN_SHARE=(()=>{try{return!!(navigator.canShare&&navigator.canShare({files:[new File([],'a.zip',{type:'application/zip'})]}))}catch{return false}})();
 const ACT={
  home:goHome,
@@ -689,6 +698,7 @@ const ACT={
  pick({id}){sel=id;presence();render()},
  closePop(){popId=null;popup()},
  getm({id}){dlAdd([id])},
+ expm({id,pid,type}){exportMedia(id,pid,type).catch(e=>toast('Export impossible : '+e.message))},
  edit({id}){openPerson(id)},
  editat({id,s}){openPerson(id,{},null,s)},
  addChild({id}){const p=get(id),q=get(p.partner);openPerson(null,{parents:[p.id,q&&q.id].filter(Boolean),last:p.gender==='F'&&q?q.last:p.last})},

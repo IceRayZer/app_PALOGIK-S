@@ -89,6 +89,9 @@ const confirm=()=>true;
  // formats : photo JPEG 1280 px à 80 %, son AAC mono 48 kbit/s, AAC préféré quand le navigateur sait l'enregistrer
  assert.deepStrictEqual(MEDIA,{photoPx:1280,photoQ:.8,audioBps:48000});
  assert.strictEqual(pickAudio(()=>true),'audio/mp4;codecs=mp4a.40.2');assert.strictEqual(pickAudio(x=>x.startsWith('audio/webm')),'audio/webm;codecs=opus');assert.strictEqual(pickAudio(()=>false),undefined);
+ // noms de fichiers des médias exportés
+ assert.strictEqual(personBase({first:'Élise',last:'Martin',birth:''}),'Elise-Martin_sans-date');assert.strictEqual(personBase({first:'Jean',last:'Dupont',birth:'1952-03-14'}),'Jean-Dupont_1952');
+ assert.strictEqual(fileExt('audio/mp4;codecs=mp4a.40.2'),'m4a');assert.strictEqual(fileExt('image/svg+xml'),'svg');assert.strictEqual(fileExt(''),'bin','type inconnu : pas de plantage');assert.strictEqual(mediaDay({u:Date.UTC(2020,0,5)}),'2020-01-05');
  // décompte des tickets du bandeau de l'hôte : ajout = fiche inconnue, suppression = fiche supprimée, modification = fiche existante
  T={persons:{a:{id:'a'}},tickets:[{pid:'a',after:{}},{pid:'zz',after:{}},{pid:'a',after:{del:true}},{pid:'a',after:{}}]};
  assert.deepStrictEqual(tkCounts(),{add:1,mod:2,del:1});
